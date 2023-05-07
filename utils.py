@@ -6,6 +6,8 @@ from config import Cfg
 import calendar, time
 import sys
 
+from datetime import datetime
+
 from Crypto.Random import get_random_bytes
 import rsa
 
@@ -36,6 +38,13 @@ def gen_timestamp() -> bytes:
     current_gmt = time.gmtime()
     time_stamp = calendar.timegm(current_gmt)
     return time_stamp.to_bytes(Cfg.TIMESTAMP_BYTE_SIZE, sys.byteorder)
+
+
+def timestamp_to_string(timestamp: bytes) -> str:
+    '''
+    Vraća string za timestamp bytearray
+    '''
+    return str(datetime.fromtimestamp(int.from_bytes(timestamp, sys.byteorder)))
 
 
 def generate_session_key() -> bytes:
