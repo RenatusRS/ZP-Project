@@ -334,7 +334,7 @@ if __name__ == '__main__':
 
     msg = create_message(string, auth=(AsymEnc.RSA, pr2), encr=(AsymEnc.RSA, pu, SymEnc.AES))
     print(msg)
-    read = read_message(msg, auth=pu2, decr=pr)
+    read = read_message(msg, auth=pu2, decr=pr2)
 
     print(read.decode('utf8'))
 
