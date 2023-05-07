@@ -3,6 +3,7 @@
 from typing import Tuple, Union
 from utils import SymEnc, AsymEnc, get_key_id, gen_timestamp, generate_session_key
 from config import Cfg
+from ring import keyrings, PrivateKeyRow, PublicKeyRow
 
 import rsa
 import zlib
@@ -82,75 +83,83 @@ def isBase64(s) -> bool:
 # ------------------------------------------------------
 
 
-def authentication(message: bytes, auth: Tuple[AsymEnc, rsa.PrivateKey]) -> bytes:
+def authentication(message: bytes, auth: PrivateKeyRow) -> bytes:
     '''
     Pravi header za autentikaciju.
 
     message -- poruka pretvorena u bytearray (sa encode('utf8'))
-    auth    -- torka identifikatora algoritma za asimetrično šifrovanje i privatnog ključa pošiljaoca
+    auth    -- red iz privatnog keyringa
     '''
-    assert(auth[0] is AsymEnc.RSA or auth[0] is AsymEnc.ELGAMAL)
-    if auth[0] is AsymEnc.RSA:
+    assert(auth.algo is AsymEnc.RSA or auth.algo is AsymEnc.ELGAMAL)
+    if auth.algo is AsymEnc.RSA:
+        private_key = auth.get_private_key()
+        assert(private_key is not None)
+
         header: bytes = b''
         header += gen_timestamp() # timestamp - prvih TIMESTAMP_BYTE_SIZE bajtova
-        header += get_key_id(auth[1]) # ID javnog ključa pošiljaoca - 8 bajtova
+        header += auth.key_id # ID javnog ključa pošiljaoca - 8 bajtova
 
         hsh = rsa.compute_hash(message, 'SHA-1') # računanje hash-a poruke
 
         header += hsh[0:2] # prva dva okteta hash-a
-        header += rsa.sign_hash(hsh, auth[1], 'SHA-1') # šifrovan hash
+        header += rsa.sign_hash(hsh, private_key, 'SHA-1') # šifrovan hash
 
         return header
 
-    if auth[0] is AsymEnc.ELGAMAL:
+    if auth.algo is AsymEnc.ELGAMAL:
         return message
 
 
-def auth_check(message: bytes, auth: Tuple[AsymEnc, rsa.PublicKey]) -> None:
+def auth_check(message: bytes, user: str) -> None:
     '''
     Sklanja zaglavlje sa poruke i proverava da li je hash ispravan
 
     message -- dešifrovana poruka
-    auth    -- torka identifikatora algoritma za asimetrično šifrovanje i javnog ključa primaoca
+    user    -- string koji identifikuje korisnika koji proverava autentikaciju
     '''
-    assert(auth[0] is AsymEnc.RSA or auth[0] is AsymEnc.ELGAMAL)
-    if auth[0] is AsymEnc.RSA:
-        header = message[:AUTH_HEADER_SIZE]
 
-        timestamp = header[:Cfg.TIMESTAMP_BYTE_SIZE]
-        header = header[Cfg.TIMESTAMP_BYTE_SIZE:]
-        public_key_id = header[:Cfg.KEY_ID_SIZE]
-        header = header[Cfg.KEY_ID_SIZE:]
-        octets = header[:2]
-        header = header[2:]
-        digest = header[:SHA1_BYTE_SIZE]
+    header = message[:AUTH_HEADER_SIZE]
 
-        message = message[AUTH_HEADER_SIZE:]
+    timestamp = header[:Cfg.TIMESTAMP_BYTE_SIZE]
+    header = header[Cfg.TIMESTAMP_BYTE_SIZE:]
+    public_key_id = header[:Cfg.KEY_ID_SIZE]
+    header = header[Cfg.KEY_ID_SIZE:]
+    octets = header[:2]
+    header = header[2:]
+    digest = header[:SHA1_BYTE_SIZE]
+
+    keyrow = keyrings[user].get_by_key(public_key_id, True)
+    assert(keyrow is not None)
+    pu = keyrow.public_key
+    assert(keyrow.algo is AsymEnc.RSA or keyrow.algo is AsymEnc.ELGAMAL)
+
+    message = message[AUTH_HEADER_SIZE:]
+    if keyrow.algo is AsymEnc.RSA:
         try:
-            rsa.verify(message, digest, auth[1])
+            rsa.verify(message, digest, pu)
         except rsa.pkcs1.VerificationError:
             print("\n>>>Verification Error<<<\n") # TODO
-        return
-    if auth[0] is AsymEnc.ELGAMAL:
-        pass # TODO
+    elif keyrow.algo is AsymEnc.ELGAMAL:
+        raise Exception("Not yet implemented")
+    return
 
 
-def encryption(message: bytes, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc]) -> bytes:
+def encryption(message: bytes, encr: Tuple[PublicKeyRow, SymEnc]) -> bytes:
     '''
     Generiše session_key, šifruje ga javnim ključem primaoca, i pravi zaglavlje od
     šifrovanog session_key i ID javnog ključa primaoca.
     Onda šifruje celu poruku (sa zaglavljima autentikacije ako postoje) i na nju
     dodaje zaglavlje za šifrovanje poruke.
     '''
-    assert(encr[0] is AsymEnc.RSA or encr[0] is AsymEnc.ELGAMAL)
-    if encr[0] is AsymEnc.RSA:
+    assert(encr[0].algo is AsymEnc.RSA or encr[0].algo is AsymEnc.ELGAMAL)
+    if encr[0].algo is AsymEnc.RSA:
         header: bytes = b''
-        header += get_key_id(encr[1]) # na header dodaje ID javnog ključa primaoca
+        header += encr[0].key_id # na header dodaje ID javnog ključa primaoca
         session_key = generate_session_key() # generiše sesijski ključ (16B)
-        header += rsa.encrypt(session_key, encr[1]) # na header dodaje šifrovan Ks
-        message, iv = encrypt_with_session_key(encr[2], session_key, message)
+        header += rsa.encrypt(session_key, encr[0].public_key) # na header dodaje šifrovan Ks
+        message, iv = encrypt_with_session_key(encr[1], session_key, message)
         return header + iv + message # na header dodaje Cipher IV
-    if encr[0] is AsymEnc.ELGAMAL:
+    if encr[0].algo is AsymEnc.ELGAMAL:
         return message
 
 
@@ -172,7 +181,7 @@ def decryption(message: bytes, decr: Tuple[AsymEnc, rsa.PrivateKey, SymEnc]) -> 
         return message
 
 
-def create_message(message: str, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc] = None, auth: Tuple[AsymEnc, rsa.PrivateKey] = None, compr: bool = False, radix64: bool = False) -> bytes:
+def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth: PrivateKeyRow = None, compr: bool = False, radix64: bool = False) -> bytes:
     '''Kreiranje poruke koja treba da se sačuva negde na disku.
     Parametri:
     message     -- poruka
@@ -194,9 +203,9 @@ def create_message(message: str, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc] = N
         encoded = encryption(encoded, encr)
 
     header = b''
-    header += auth[0].value.to_bytes(1, sys.byteorder) if auth else b'0'
-    header += encr[0].value.to_bytes(1, sys.byteorder) if encr else b'0'
-    header += encr[2].value.to_bytes(1, sys.byteorder) if encr else b'0'
+    header += auth.algo.value.to_bytes(1, sys.byteorder) if auth else b'0'
+    header += encr[0].algo.value.to_bytes(1, sys.byteorder) if encr else b'0'
+    header += encr[1].value.to_bytes(1, sys.byteorder) if encr else b'0'
     header += compr.to_bytes(1, sys.byteorder)
     encoded = header + encoded
 
@@ -206,7 +215,7 @@ def create_message(message: str, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc] = N
     return encoded
 
 
-def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKey = None) -> str:
+def read_message(user: str, message: bytes) -> str:
     '''
     Čitanje poruke u obliku bytearray
 
@@ -231,23 +240,24 @@ def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKe
     f_sym  = int.from_bytes(header[2:3], sys.byteorder)
     f_comp = int.from_bytes(header[3:4], sys.byteorder)
 
-    assert((f_asym and f_sym and decr) or (not f_asym and not f_sym and not decr))
-    assert((f_auth and auth) or (not f_auth and not auth))
+    assert((f_asym and f_sym) or (not f_asym and not f_sym))
 
-    if f_sym and f_asym and decr:
+    if f_sym and f_asym:
         # sklanjamo zaglavlje
         key_id  = message[:Cfg.KEY_ID_SIZE]
         message = message[Cfg.KEY_ID_SIZE:]
-        # private_key = get_private_key(key_id) TODO
+
+        private_key = keyrings[user].get_by_key(key_id, False).get_private_key()
+        assert(private_key is not None)
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
-        message = decryption(message, (AsymEnc(f_asym), decr, SymEnc(f_sym)))
+        message = decryption(message, (AsymEnc(f_asym), private_key, SymEnc(f_sym)))
     if f_comp:
         # dekompresujemo poruku
         message = decompression(message)
-    if f_auth and auth:
+    if f_auth:
         # sklanjamo zaglavlje za autentikaciju i proveravamo ispravnost potpisa
-        auth_check(message, (AsymEnc(f_auth), auth))
+        auth_check(message, user)
         message = message[AUTH_HEADER_SIZE:]
 
     timestamp = message[0:Cfg.TIMESTAMP_BYTE_SIZE]
@@ -265,22 +275,16 @@ def send_message(msg: bytes, location: str) -> None:
         f.write(msg)
 
 
-def receive_message(location: str, auth: rsa.PublicKey = None, decr: rsa.PrivateKey = None) -> str:
+def receive_message(location: str, user: str) -> str:
     '''Čitanje poruke sa diska
     Parametri:
     location -- lokacija poruke na disku
     '''
     with open(location, 'rb') as f:
         data: bytes = f.read()
-        return read_message(data, decr, auth)
+        return read_message(user, data)
 
 
 if __name__ == '__main__':
-    pu, pr = rsa.newkeys(RSA_BITS)
-    pu2, pr2 = rsa.newkeys(RSA_BITS)
-    string = "RADIIIIIIIIIIIIII"
-
-    msg = create_message(string, auth=(AsymEnc.RSA, pr2), encr=(AsymEnc.RSA, pu, SymEnc.AES))
-    send_message(msg, 'pls')
-    print(receive_message('pls', auth=pu2, decr=pr))
+    pass
 

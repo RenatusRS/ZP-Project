@@ -47,14 +47,15 @@ class PrivateKeyRow:
         return pw1
 
 
-    def get_private_key(self, password: str) -> Union[rsa.PrivateKey, None]:
+    def get_private_key(self) -> Union[rsa.PrivateKey, None]:
         try:
+            password = input("Unesi master šifru: ")
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
             cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
             priv = pickle.loads(cipher.decrypt(temp))
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
-        except:
+        except pickle.UnpicklingError:
             return None
 
 
@@ -134,14 +135,17 @@ keyrings: Dict[str, Keyring] = { }
 def populate():
     keyrings["fedja"] = Keyring()
     keyrings["lonchar"] = Keyring()
-    keyrings["fedja"].insert(PrivateKeyRow("fedja@fedja", AsymEnc.RSA, 1024, "fedja"))
-    keyrings["fedja"].insert(PrivateKeyRow("djafe@djafe", AsymEnc.RSA, 1024, "fedja"))
+    p = PrivateKeyRow("fedja@fedja", AsymEnc.RSA, 1024, "fedja")
+    keyrings["fedja"].insert(p)
+    keyrings["lonchar"].insert(PublicKeyRow(p.public_key, "u1", p.algo))
+    p = PrivateKeyRow("djafe@djafe", AsymEnc.RSA, 1024, "fedja")
+    keyrings["fedja"].insert(p)
+    keyrings["lonchar"].insert(PublicKeyRow(p.public_key, "u2", p.algo))
     p = PrivateKeyRow("lonchar@lonchar", AsymEnc.RSA, 1024, "lonchar")
     keyrings["lonchar"].insert(p)
-    keyrings["fedja"].insert(PublicKeyRow(p.public_key, "urosh", AsymEnc.RSA))
+    keyrings["fedja"].insert(PublicKeyRow(p.public_key, "urosh", p.algo))
 
 
 if __name__ == '__main__':
     pass
-
 
