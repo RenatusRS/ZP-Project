@@ -19,18 +19,18 @@ import sys
 Enum za simetrične alogritme šifrovanja
 '''
 class SymEnc(Enum):
-    DES3  = 0
-    AES   = 1
-    CAST5 = 2
-    IDEA  = 3
+    DES3  = 1
+    AES   = 2
+    CAST5 = 3
+    IDEA  = 4
 
 
 '''
 Enum za asimetrične algoritme šifrovanja
 '''
 class AsymEnc(Enum):
-    RSA     = 0
-    ELGAMAL = 1
+    RSA     = 1
+    ELGAMAL = 2
 
 # --------------------- Konstante ----------------------
 
@@ -39,8 +39,8 @@ KEY_ID_SIZE: int                 = 8
 RSA_BITS: int                    = 1024
 ENCRYPTED_SESSION_KEY_BYTES: int = int(RSA_BITS/8)
 SESSION_KEY_BYTES: int           = 16
-SYM_ALGO_ID_SIZE: int            = 2
 SHA1_BYTE_SIZE: int              = int(RSA_BITS/8)
+MESSAGE_METADATA: int            = 4
 
 AUTH_HEADER_SIZE: int            = TIMESTAMP_BYTE_SIZE + KEY_ID_SIZE + 2 + SHA1_BYTE_SIZE
 
@@ -101,7 +101,7 @@ def encrypt_with_session_key(algorithm: SymEnc, session_key: bytes, message: byt
         cipher = AES.new(session_key, AES.MODE_CFB)
 
     ciphertext = cipher.encrypt(message)
-    return ciphertext, cipher.iv, algorithm.value.to_bytes(SYM_ALGO_ID_SIZE, sys.byteorder)
+    return ciphertext, cipher.iv
 
 
 def decrypt_with_session_key(algorithm: SymEnc, session_key: bytes, iv: bytes, message: bytes) -> bytes:
@@ -117,6 +117,12 @@ def decrypt_with_session_key(algorithm: SymEnc, session_key: bytes, iv: bytes, m
     plaintext = cipher.decrypt(message)
     return plaintext
 
+
+def isBase64(s) -> bool:
+    try:
+        return base64.b64encode(base64.b64decode(s)) == s
+    except Exception:
+        return False
 # ------------------------------------------------------
 
 
@@ -151,6 +157,7 @@ def authentication(message: bytes, auth: Tuple[AsymEnc, rsa.PrivateKey]) -> byte
         header += rsa.sign_hash(hsh, auth[1], 'SHA-1') # šifrovan hash
 
         return header
+
     if auth[0] is AsymEnc.ELGAMAL:
         return message
 
@@ -196,28 +203,25 @@ def encryption(message: bytes, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc]) -> b
         header += get_key_id(encr[1]) # na header dodaje ID javnog ključa primaoca
         session_key = generate_session_key() # generiše sesijski ključ (16B)
         header += rsa.encrypt(session_key, encr[1]) # na header dodaje šifrovan Ks
-        message, iv, algorithm = encrypt_with_session_key(encr[2], session_key, message)
-        return header + algorithm + iv + message # na header dodaje ID algoritma i Cipher IV
+        message, iv = encrypt_with_session_key(encr[2], session_key, message)
+        return header + iv + message # na header dodaje Cipher IV
     if encr[0] is AsymEnc.ELGAMAL:
         return message
 
 
-def decryption(message: bytes, decr: Tuple[AsymEnc, rsa.PrivateKey]) -> bytes:
+def decryption(message: bytes, decr: Tuple[AsymEnc, rsa.PrivateKey, SymEnc]) -> bytes:
     assert(decr[0] is AsymEnc.RSA or decr[0] is AsymEnc.ELGAMAL)
     if decr[0] is AsymEnc.RSA:
         enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
         message = message[ENCRYPTED_SESSION_KEY_BYTES:]
 
-        algo_id = int.from_bytes(message[:SYM_ALGO_ID_SIZE], sys.byteorder)
-        algorithm = SymEnc(algo_id)
-        message = message[SYM_ALGO_ID_SIZE:]
-        block_size = AES.block_size if algorithm == SymEnc.AES else DES3.block_size
+        block_size = AES.block_size if decr[2] == SymEnc.AES else DES3.block_size
 
         iv = message[:block_size]
         message = message[block_size:]
 
         session_key = rsa.decrypt(enc_session_key, decr[1])
-        message = decrypt_with_session_key(algorithm, session_key, iv, message)
+        message = decrypt_with_session_key(decr[2], session_key, iv, message)
         return message
     if decr[0] is AsymEnc.ELGAMAL:
         return message
@@ -243,6 +247,14 @@ def create_message(message: str, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc] = N
     if encr:
         # šifrujemo poruku i ispred nje dodajemo zaglavlje sa sesijskim ključem
         encoded = encryption(encoded, encr)
+
+    header = b''
+    header += auth[0].value.to_bytes(1, sys.byteorder) if auth else b'0'
+    header += encr[0].value.to_bytes(1, sys.byteorder) if encr else b'0'
+    header += encr[2].value.to_bytes(1, sys.byteorder) if encr else b'0'
+    header += compr.to_bytes(1, sys.byteorder)
+    encoded = header + encoded
+
     if radix64:
         # sve konvertujemo u radix64
         encoded = message_to_radix64(encoded)
@@ -266,7 +278,7 @@ def receieve_message(location: str) -> None:
     pass
 
 
-def read_message(message: bytes, decr: Tuple[AsymEnc, rsa.PrivateKey] = None, auth: Tuple[AsymEnc, rsa.PublicKey] = None, compr: bool = False, radix64: bool = False):
+def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKey = None):
     '''
     Čitanje poruke u obliku bytearray
 
@@ -279,23 +291,35 @@ def read_message(message: bytes, decr: Tuple[AsymEnc, rsa.PrivateKey] = None, au
     radix64 -- opcioni bool koji određuje da li se poruka konvertuje iz radix64 ili ne
 
     '''
-    if radix64:
+    if isBase64(message):
         # konvertujemo nazad iz radix64
         message = radix64_to_message(message)
-    if decr:
+
+    header = message[:MESSAGE_METADATA]
+    message = message[MESSAGE_METADATA:]
+
+    f_auth = int.from_bytes(header[0:1], sys.byteorder)
+    f_asym = int.from_bytes(header[1:2], sys.byteorder)
+    f_sym  = int.from_bytes(header[2:3], sys.byteorder)
+    f_comp = int.from_bytes(header[3:4], sys.byteorder)
+
+    assert((f_asym and f_sym and decr) or (not f_asym and not f_sym and not decr))
+    assert((f_auth and auth) or (not f_auth and not auth))
+
+    if f_sym and f_asym and decr:
         # sklanjamo zaglavlje
         key_id  = message[:KEY_ID_SIZE]
         message = message[KEY_ID_SIZE:]
         # private_key = get_private_key(key_id) TODO
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
-        message = decryption(message, decr)
-    if compr:
+        message = decryption(message, (AsymEnc(f_asym), decr, SymEnc(f_sym)))
+    if f_comp:
         # dekompresujemo poruku
         message = decompression(message)
-    if auth:
+    if f_auth and auth:
         # sklanjamo zaglavlje za autentikaciju i proveravamo ispravnost potpisa
-        auth_check(message, auth)
+        auth_check(message, (AsymEnc(f_auth), auth))
         message = message[AUTH_HEADER_SIZE:]
 
     timestamp = message[0:TIMESTAMP_BYTE_SIZE]
@@ -308,9 +332,9 @@ if __name__ == '__main__':
     pu2, pr2 = rsa.newkeys(RSA_BITS)
     string = "RADIIIIIIIIIIIIII"
 
-    msg = create_message(string, auth=(AsymEnc.RSA, pr2), encr=(AsymEnc.RSA, pu, SymEnc.AES), compr=True, radix64=True)
+    msg = create_message(string, auth=(AsymEnc.RSA, pr2), encr=(AsymEnc.RSA, pu, SymEnc.AES))
     print(msg)
-    read = read_message(msg, auth=(AsymEnc.RSA, pu2), decr=(AsymEnc.RSA, pr), compr=True, radix64=True)
+    read = read_message(msg, auth=pu2, decr=pr)
 
     print(read.decode('utf8'))
 
