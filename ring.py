@@ -1,4 +1,4 @@
-import typing
+from typing import Union, List, Dict
 
 from utils import AsymEnc, gen_timestamp, get_key_id
 import pickle
@@ -30,15 +30,6 @@ class PrivateKeyRow:
 
         cipher = CAST.new(pw1.encode('utf8'), CAST.MODE_OPENPGP)
         enc_private_key = cipher.encrypt(pickle.dumps(private_key))
-        ''' decryption
-        try:
-            eiv = enc_private_key[:CAST.block_size+2]
-            temp = enc_private_key[CAST.block_size+2:]
-            cipher = CAST.new(pw1.encode('utf8'), CAST.MODE_OPENPGP, eiv)
-            new_priv = pickle.loads(cipher.decrypt(temp))
-        except _pickle.UnpicklingError:
-            pass # TODO
-        '''
 
         self.timestamp: bytes       = gen_timestamp()
         self.key_id: bytes          = get_key_id(public_key)
@@ -47,9 +38,22 @@ class PrivateKeyRow:
         self.enc_private_key: bytes = enc_private_key
         self.user_id: str           = user_id
 
+    def get_private_key(self, password: str) -> Union[rsa.PrivateKey, None]:
+        try:
+            eiv = self.enc_private_key[:CAST.block_size+2]
+            temp = self.enc_private_key[CAST.block_size+2:]
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
+            priv = pickle.loads(cipher.decrypt(temp))
+            return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
+        except:
+            return None
+
 
 class PublicKeyRow:
     def __init__(self, public_key: rsa.PublicKey, user_id: str, algo: AsymEnc):
+        assert(len(user_id) > 0)
+        assert(algo is AsymEnc.RSA or algo is AsymEnc.ELGAMAL)
+
         self.timestamp: bytes          = gen_timestamp()
         self.key_id: bytes             = get_key_id(public_key)
         self.public_key: rsa.PublicKey = public_key
@@ -59,20 +63,29 @@ class PublicKeyRow:
 
 class Keyring:
     def __init__(self):
-        self.keyring = []
+        self.keyring: Tuple[List[PrivateKeyRow], List[PublicKeyRow]] = ([], [])
 
-    def get_by_key(self, key_id):
-        for row in self.keyring:
+
+    def get_by_key(self, key_id, public: bool = True):
+        for row in self.keyring[public]:
             if row.key_id == key_id:
                 return row
         return None
 
-    def get_by_user(self, user_id):
-        for row in self.keyring:
+
+    def get_by_user(self, user_id, public: bool = True):
+        for row in self.keyring[public]:
             if row.user_id == user_id:
                 return row
         return None
 
-    def insert(self, keyrow):
-        self.keyring.append(keyrow)
+
+    def insert(self, keyrow: Union[PublicKeyRow, PrivateKeyRow], public: bool = True):
+        self.keyring[public].append(keyrow)
+
+keyrings: Dict[str, Keyring] = {}
+
+if __name__ == '__main__':
+    pass
+
 

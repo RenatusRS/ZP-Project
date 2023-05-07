@@ -82,18 +82,6 @@ def isBase64(s) -> bool:
 # ------------------------------------------------------
 
 
-def gen_private_key(username: str, mail: str, asym_algo: AsymEnc, keysize: int, masterkey: str) -> None:
-    '''Generisanje novog privatnog ključa
-    Parametri:
-    username  -- identifikator osobe čiji je ključ
-    mail      -- mejl za koji koristimo privatni ključ
-    asym_algo -- asimetrični algoritam koji se koristi
-    keysize   -- veličina ključa u (bitima ili bajtovima?) TODO
-    masterkey -- master ključ korisnika
-    '''
-    pass # TODO
-
-
 def authentication(message: bytes, auth: Tuple[AsymEnc, rsa.PrivateKey]) -> bytes:
     '''
     Pravi header za autentikaciju.
@@ -145,6 +133,7 @@ def auth_check(message: bytes, auth: Tuple[AsymEnc, rsa.PublicKey]) -> None:
         return
     if auth[0] is AsymEnc.ELGAMAL:
         pass # TODO
+
 
 def encryption(message: bytes, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc]) -> bytes:
     '''
