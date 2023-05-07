@@ -1,6 +1,6 @@
 import typing
 
-from messages import AsymEnc, gen_timestamp, get_key_id
+from utils import AsymEnc, gen_timestamp, get_key_id
 import pickle
 
 import rsa

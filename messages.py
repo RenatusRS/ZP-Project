@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 from typing import Tuple, Union
-from enum import Enum
+from utils import SymEnc, AsymEnc, get_key_id, gen_timestamp, generate_session_key
+from config import Cfg
 
-import hashlib
 import rsa
 import zlib
 import base64
+
 from Crypto.Cipher import DES3, AES
 from Crypto.Random import get_random_bytes
 
@@ -15,34 +16,15 @@ import time
 
 import sys
 
-'''
-Enum za simetrične alogritme šifrovanja
-'''
-class SymEnc(Enum):
-    DES3  = 1
-    AES   = 2
-    CAST5 = 3
-    IDEA  = 4
-
-
-'''
-Enum za asimetrične algoritme šifrovanja
-'''
-class AsymEnc(Enum):
-    RSA     = 1
-    ELGAMAL = 2
 
 # --------------------- Konstante ----------------------
 
-TIMESTAMP_BYTE_SIZE: int         = 32
-KEY_ID_SIZE: int                 = 8
 RSA_BITS: int                    = 1024
 ENCRYPTED_SESSION_KEY_BYTES: int = int(RSA_BITS/8)
-SESSION_KEY_BYTES: int           = 16
 SHA1_BYTE_SIZE: int              = int(RSA_BITS/8)
 MESSAGE_METADATA: int            = 4
 
-AUTH_HEADER_SIZE: int            = TIMESTAMP_BYTE_SIZE + KEY_ID_SIZE + 2 + SHA1_BYTE_SIZE
+AUTH_HEADER_SIZE: int            = Cfg.TIMESTAMP_BYTE_SIZE + Cfg.KEY_ID_SIZE + 2 + SHA1_BYTE_SIZE
 
 # ------------------------------------------------------
 
@@ -64,32 +46,6 @@ def radix64_to_message(radix64: bytes) -> bytes:
 
 
 # ------------------ Utilities -------------------------
-def gen_timestamp() -> bytes:
-    '''
-    Generiše bytearray za trenutno vreme
-    '''
-    current_gmt = time.gmtime()
-    time_stamp = calendar.timegm(current_gmt)
-    return time_stamp.to_bytes(TIMESTAMP_BYTE_SIZE, sys.byteorder)
-
-
-def generate_session_key() -> bytes:
-    '''
-    Generiše nasumični sesijski ključ uobičajne veličine
-    '''
-    return get_random_bytes(SESSION_KEY_BYTES)
-
-
-def get_key_id(key: Union[rsa.PrivateKey, rsa.PublicKey]) -> bytes:
-    '''
-    Uzima 64 najmanje značajnih bita privatnog ili javnog ključa i pretvara ih
-    u bytearray veličine 8 bajtova
-
-    key -- ključ za koji se uzima ID
-    '''
-    return (key.n % 2**64).to_bytes(KEY_ID_SIZE, sys.byteorder)
-
-
 def encrypt_with_session_key(algorithm: SymEnc, session_key: bytes, message: bytes):
     '''
     Šifruje poruku 'message' ključem 'session_key' simetričnim algoritmom 'algorithm'
@@ -173,10 +129,10 @@ def auth_check(message: bytes, auth: Tuple[AsymEnc, rsa.PublicKey]) -> None:
     if auth[0] is AsymEnc.RSA:
         header = message[:AUTH_HEADER_SIZE]
 
-        timestamp = header[:TIMESTAMP_BYTE_SIZE]
-        header = header[TIMESTAMP_BYTE_SIZE:]
-        public_key_id = header[:KEY_ID_SIZE]
-        header = header[KEY_ID_SIZE:]
+        timestamp = header[:Cfg.TIMESTAMP_BYTE_SIZE]
+        header = header[Cfg.TIMESTAMP_BYTE_SIZE:]
+        public_key_id = header[:Cfg.KEY_ID_SIZE]
+        header = header[Cfg.KEY_ID_SIZE:]
         octets = header[:2]
         header = header[2:]
         digest = header[:SHA1_BYTE_SIZE]
@@ -308,8 +264,8 @@ def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKe
 
     if f_sym and f_asym and decr:
         # sklanjamo zaglavlje
-        key_id  = message[:KEY_ID_SIZE]
-        message = message[KEY_ID_SIZE:]
+        key_id  = message[:Cfg.KEY_ID_SIZE]
+        message = message[Cfg.KEY_ID_SIZE:]
         # private_key = get_private_key(key_id) TODO
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
@@ -322,9 +278,9 @@ def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKe
         auth_check(message, (AsymEnc(f_auth), auth))
         message = message[AUTH_HEADER_SIZE:]
 
-    timestamp = message[0:TIMESTAMP_BYTE_SIZE]
+    timestamp = message[0:Cfg.TIMESTAMP_BYTE_SIZE]
     # sklanjamo timestamp
-    return message[TIMESTAMP_BYTE_SIZE:]
+    return message[Cfg.TIMESTAMP_BYTE_SIZE:]
 
 
 if __name__ == '__main__':
@@ -334,7 +290,7 @@ if __name__ == '__main__':
 
     msg = create_message(string, auth=(AsymEnc.RSA, pr2), encr=(AsymEnc.RSA, pu, SymEnc.AES))
     print(msg)
-    read = read_message(msg, auth=pu2, decr=pr2)
+    read = read_message(msg, auth=pu2, decr=pr)
 
     print(read.decode('utf8'))
 
