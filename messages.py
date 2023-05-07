@@ -206,24 +206,7 @@ def create_message(message: str, encr: Tuple[AsymEnc, rsa.PublicKey, SymEnc] = N
     return encoded
 
 
-def send_message(msg: bytes, location: str) -> None:
-    '''Čuvanje poruke kreirane sa create_message(...) negde na disku.
-    Parametri:
-    msg      -- poruka kreirana sa create_message(...)
-    location -- lokacija poruke na disku
-    '''
-    pass
-
-
-def receieve_message(location: str) -> None:
-    '''Čitanje poruke sa diska
-    Parametri:
-    location -- lokacija poruke na disku
-    '''
-    pass
-
-
-def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKey = None):
+def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKey = None) -> str:
     '''
     Čitanje poruke u obliku bytearray
 
@@ -269,7 +252,27 @@ def read_message(message: bytes, decr: rsa.PrivateKey = None, auth: rsa.PublicKe
 
     timestamp = message[0:Cfg.TIMESTAMP_BYTE_SIZE]
     # sklanjamo timestamp
-    return message[Cfg.TIMESTAMP_BYTE_SIZE:]
+    return message[Cfg.TIMESTAMP_BYTE_SIZE:].decode('utf8')
+
+
+def send_message(msg: bytes, location: str) -> None:
+    '''Čuvanje poruke kreirane sa create_message(...) negde na disku.
+    Parametri:
+    msg      -- poruka kreirana sa create_message(...)
+    location -- lokacija poruke na disku
+    '''
+    with open(location, 'wb') as f:
+        f.write(msg)
+
+
+def receive_message(location: str, auth: rsa.PublicKey = None, decr: rsa.PrivateKey = None) -> str:
+    '''Čitanje poruke sa diska
+    Parametri:
+    location -- lokacija poruke na disku
+    '''
+    with open(location, 'rb') as f:
+        data: bytes = f.read()
+        return read_message(data, decr, auth)
 
 
 if __name__ == '__main__':
@@ -278,8 +281,6 @@ if __name__ == '__main__':
     string = "RADIIIIIIIIIIIIII"
 
     msg = create_message(string, auth=(AsymEnc.RSA, pr2), encr=(AsymEnc.RSA, pu, SymEnc.AES))
-    print(msg)
-    read = read_message(msg, auth=pu2, decr=pr)
-
-    print(read.decode('utf8'))
+    send_message(msg, 'pls')
+    print(receive_message('pls', auth=pu2, decr=pr))
 
