@@ -162,16 +162,12 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         return self._enc_private_key
 
 
-class PublicKeyRow:
-    def __init__(self, public_key: rsa.PublicKey, user_id: str, algo: AsymEnc):
+class PublicKeyRow(ABC):
+    def __init__(self, user_id: str):
         assert(len(user_id) > 0)
-        assert(algo is AsymEnc.RSA or algo is AsymEnc.ELGAMAL)
 
         self.timestamp: bytes          = gen_timestamp()
-        self.key_id: bytes             = get_key_id(public_key)
-        self.public_key: rsa.PublicKey = public_key
         self.user_id: str              = user_id
-        self.algo: AsymEnc             = algo
 
 
     def __repr__(self):
@@ -182,6 +178,52 @@ class PublicKeyRow:
         rpr += 'algorithm: ' + self.algo.name + '\n'
         rpr += '--------------------------' + '-'*len(self.user_id) + '\n'
         return rpr
+
+
+    @property
+    @abstractmethod
+    def algo(self):
+        pass
+
+
+    @property
+    @abstractmethod
+    def key_id(self):
+        pass
+
+
+    @property
+    @abstractmethod
+    def public_key(self):
+        pass
+
+
+class PublicKeyRowRSA(PublicKeyRow):
+    def __init__(self, public_key: rsa.PublicKey, user_id: str):
+        assert(public_key is not None)
+        super().__init__(user_id)
+        self._key_id: bytes             = get_key_id(public_key)
+        self._public_key: rsa.PublicKey = public_key
+        self._algo: AsymEnc             = AsymEnc.ELGAMAL
+
+
+    @property
+    @abstractmethod
+    def algo(self):
+        return self._algo
+
+
+    @property
+    @abstractmethod
+    def key_id(self):
+        return self._key_id
+
+
+    @property
+    @abstractmethod
+    def public_key(self):
+        return self._public_key
+
 
 
 class Keyring:
@@ -229,13 +271,13 @@ def populate():
     keyrings["lonchar"] = Keyring()
     p = PrivateKeyRowRSA("fedja@fedja", 1024, "fedja")
     keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRow(p.public_key, "u1", p.algo))
+    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u1"))
     p = PrivateKeyRowRSA("djafe@djafe", 1024, "fedja")
     keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRow(p.public_key, "u2", p.algo))
+    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u2"))
     p = PrivateKeyRowRSA("lonchar@lonchar", 1024, "lonchar")
     keyrings["lonchar"].insert(p)
-    keyrings["fedja"].insert(PublicKeyRow(p.public_key, "urosh", p.algo))
+    keyrings["fedja"].insert(PublicKeyRowRSA(p.public_key, "urosh"))
 
 
 if __name__ == '__main__':
