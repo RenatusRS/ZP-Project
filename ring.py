@@ -125,6 +125,43 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         return self._enc_private_key
 
 
+class PrivateKeyRowElGamal(PrivateKeyRow):
+    def __init__(self, user_id: str, key_size: int, password: str):
+        assert(key_size == 1024 or key_size == 2048)
+
+        super().__init__(user_id, password)
+        self._algo = AsymEnc.ELGAMAL
+
+        self._key_id = None
+        self._public_key = None
+        self._enc_private_key = None
+        raise Exception("Not yet implemented")
+
+
+    def get_private_key(self):
+        raise Exception("Not yet implemented")
+
+
+    @property
+    def algo(self):
+        return self._algo
+
+
+    @property
+    def key_id(self):
+        return self._key_id
+
+
+    @property
+    def public_key(self):
+        return self._public_key
+
+
+    @property
+    def enc_private_key(self):
+        return self._enc_private_key
+
+
 class PublicKeyRow:
     def __init__(self, public_key: rsa.PublicKey, user_id: str, algo: AsymEnc):
         assert(len(user_id) > 0)
