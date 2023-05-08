@@ -57,6 +57,7 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
+
     def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         pass
 
@@ -151,6 +152,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         '''
         p = PublicKeyRowRSA(self.public_key, name, self.key_size)
         Keyring.public.append(p)
+
 
 
     def get_private_key(self) -> Union[rsa.PrivateKey, None]:
@@ -400,6 +402,7 @@ class Keyring:
     def get_public_ring(self, key_id: bytes):
         for row in Keyring.public:
             if row.key_id == key_id:
+
                 return row
         return None
 
@@ -424,6 +427,7 @@ class Keyring:
     def all_public_keys():
         rpr = "\n============== PUBLIC (GLOBAL) =================\n"
         for row in Keyring.public:
+
             rpr += str(row)
         return rpr
 
@@ -442,6 +446,14 @@ def populate():
     keyrings["fedja"].add_private_ring(p, "urosh2")
     p = PrivateKeyRowRSA("lonchar@lonchar", key_size, "lonchar")
     keyrings["lonchar"].add_private_ring(p, "fedja1")
+    keyrings["fedja"].insert(p)
+    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u1", p.key_size))
+    p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
+    keyrings["fedja"].insert(p)
+    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u2", p.key_size))
+    p = PrivateKeyRowRSA("lonchar@lonchar", key_size, "lonchar")
+    keyrings["lonchar"].insert(p)
+    keyrings["fedja"].insert(PublicKeyRowRSA(p.public_key, "urosh", p.key_size))
 
 
 if __name__ == '__main__':

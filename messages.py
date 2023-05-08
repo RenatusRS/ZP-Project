@@ -113,6 +113,7 @@ def read_message(user: str, message: bytes) -> str:
         message = message[Cfg.KEY_ID_SIZE:]
 
         private_key_ring = keyrings[user].get_private_ring(key_id)
+
         assert(private_key_ring is not None)
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
@@ -132,6 +133,7 @@ def read_message(user: str, message: bytes) -> str:
         header = header[2:]
 
         keyrow = keyrings[user].get_public_ring(public_key_id)
+
         assert(keyrow is not None)
 
         message = keyrow.verify(message, header)
