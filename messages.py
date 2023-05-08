@@ -59,13 +59,13 @@ def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth:
     encoded = gen_timestamp() + encoded
     if auth:
         # dodajemo zaglavlje ispred poruke (ukupno 42B + veličina ključa u bajtovima)
-        encoded = auth.authentication(encoded) + encoded
+        encoded = auth.sign(encoded) + encoded
     if compr:
         # kompresujemo poruku
         encoded = compression(encoded)
     if encr:
         # šifrujemo poruku i ispred nje dodajemo zaglavlje sa sesijskim ključem
-        encoded = encr[0].encryption(encoded, encr[1])
+        encoded = encr[0].encrypt(encoded, encr[1])
 
     header = b''
     header += auth.algo.value.to_bytes(1, sys.byteorder) if auth else b'0'
@@ -116,7 +116,7 @@ def read_message(user: str, message: bytes) -> str:
         assert(private_key_ring is not None)
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
-        message = private_key_ring.decryption(message, SymEnc(f_sym))
+        message = private_key_ring.decrypt(message, SymEnc(f_sym))
     if f_comp:
         # dekompresujemo poruku
         message = decompression(message)
@@ -134,7 +134,7 @@ def read_message(user: str, message: bytes) -> str:
         keyrow = keyrings[user].get_by_key(public_key_id, True)
         assert(keyrow is not None)
 
-        message = keyrow.auth_check(message, header)
+        message = keyrow.verify(message, header)
 
     timestamp = message[0:Cfg.TIMESTAMP_BYTE_SIZE]
     # sklanjamo timestamp

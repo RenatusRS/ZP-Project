@@ -52,12 +52,12 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
-    def decryption(self, message: bytes, decr: SymEnc) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         pass
 
 
     @abstractmethod
-    def authentication(self, message: bytes):
+    def sign(self, message: bytes):
         pass
 
 
@@ -105,7 +105,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         self._enc_private_key: bytes    = enc_private_key
 
 
-    def decryption(self, message: bytes, decr: SymEnc) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         ENCRYPTED_SESSION_KEY_BYTES = int(self.key_size/8)
 
         enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
@@ -124,7 +124,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         return message
 
 
-    def authentication(self, message: bytes) -> bytes:
+    def sign(self, message: bytes) -> bytes:
         private_key = self.get_private_key()
         assert(private_key is not None)
 
@@ -183,11 +183,11 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         raise Exception("Not yet implemented")
 
 
-    def decryption(self, message: bytes, decr: SymEnc) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         raise Exception("Not yet implemented")
 
 
-    def authentication(self, message: bytes):
+    def sign(self, message: bytes):
         raise Exception("Not yet implemented")
 
 
@@ -236,7 +236,7 @@ class PublicKeyRow(ABC):
 
 
     @abstractmethod
-    def auth_check(self, message: bytes, header: bytes) -> bytes:
+    def verify(self, message: bytes, header: bytes) -> bytes:
         pass
 
 
@@ -246,7 +246,7 @@ class PublicKeyRow(ABC):
 
 
     @abstractmethod
-    def encryption(self, message: bytes, algo: SymEnc) -> bytes:
+    def encrypt(self, message: bytes, algo: SymEnc) -> bytes:
         pass
 
 
@@ -277,7 +277,7 @@ class PublicKeyRowRSA(PublicKeyRow):
         self._algo: AsymEnc             = AsymEnc.RSA
 
 
-    def encryption(self, message: bytes, algo: SymEnc) -> bytes:
+    def encrypt(self, message: bytes, algo: SymEnc) -> bytes:
         header: bytes = b''
         header += self.key_id # na header dodaje ID javnog ključa primaoca
         session_key = generate_session_key() # generiše sesijski ključ (16B)
@@ -286,7 +286,7 @@ class PublicKeyRowRSA(PublicKeyRow):
         return header + iv + message # na header dodaje Cipher IV
 
 
-    def auth_check(self, message: bytes, header: bytes) -> bytes:
+    def verify(self, message: bytes, header: bytes) -> bytes:
         '''
         Sklanja zaglavlje sa poruke i proverava da li je hash ispravan
 
@@ -336,12 +336,12 @@ class PublicKeyRowElGamal(PublicKeyRow):
 
 
     @abstractmethod
-    def auth_check(self, message: bytes, header: bytes) -> bytes:
+    def verify(self, message: bytes, header: bytes) -> bytes:
         raise Exception("Not yet implemented")
 
 
     @abstractmethod
-    def encryption(self, message: bytes, algo: SymEnc) -> bytes:
+    def encrypt(self, message: bytes, algo: SymEnc) -> bytes:
         raise Exception("Not yet implemented")
 
 
