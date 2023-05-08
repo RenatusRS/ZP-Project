@@ -52,6 +52,11 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
+    def add_public_key(self, name: str):
+        pass
+
+
+    @abstractmethod
     def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         pass
 
@@ -140,6 +145,14 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         return header
 
 
+    def add_public_key(self, name: str):
+        '''
+        Za generisani par ključeva dodaje javni ključ u globalni niz
+        '''
+        p = PublicKeyRowRSA(self.public_key, name, self.key_size)
+        Keyring.public.append(p)
+
+
     def get_private_key(self) -> Union[rsa.PrivateKey, None]:
         try:
             password = input("Unesi master šifru: ")
@@ -188,6 +201,10 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
     def sign(self, message: bytes):
+        raise Exception("Not yet implemented")
+
+
+    def add_public_key(self, name: str):
         raise Exception("Not yet implemented")
 
 
@@ -366,38 +383,47 @@ class PublicKeyRowElGamal(PublicKeyRow):
 
 
 class Keyring:
+    public: List[PublicKeyRow] = []
+
+
     def __init__(self):
-        self.keyring: Tuple[List[PrivateKeyRow], List[PublicKeyRow]] = ([], [])
-
-    def __getitem__(self, item):
-        return self.keyring[item]
+        self.private: List[PrivateKeyRow] = []
 
 
-    def get_by_key(self, key_id, public: bool = True):
-        for row in self.keyring[public]:
+    def get_private_ring(self, key_id: bytes):
+        for row in self.private:
             if row.key_id == key_id:
                 return row
         return None
 
 
-    def get_by_user(self, user_id, public: bool = True):
-        for row in self.keyring[public]:
-            if row.user_id == user_id:
+    def get_public_ring(self, key_id: bytes):
+        for row in Keyring.public:
+            if row.key_id == key_id:
                 return row
         return None
 
 
-    def insert(self, keyrow: Union[PublicKeyRow, PrivateKeyRow]):
-        public: bool = isinstance(keyrow, PublicKeyRow)
-        self.keyring[public].append(keyrow)
+    def add_private_ring(self, ring: PrivateKeyRow, name: str):
+        '''
+        Dodaje privatni ključ u tabelu korisnika, a njegov javni
+        parnjak dodaje u globalnu tabelu javnih ključeva
+        '''
+        self.private.append(ring)
+        ring.add_public_key(name)
 
 
     def __repr__(self):
         rpr = "=================== PRIVATE ====================\n"
-        for row in self.keyring[0]:
+        for row in self.private:
             rpr += str(row)
-        rpr += "\n==================== PUBLIC ====================\n"
-        for row in self.keyring[1]:
+        return rpr
+
+
+    @staticmethod
+    def all_public_keys():
+        rpr = "\n============== PUBLIC (GLOBAL) =================\n"
+        for row in Keyring.public:
             rpr += str(row)
         return rpr
 
@@ -411,14 +437,11 @@ def populate():
     keyrings["fedja"] = Keyring()
     keyrings["lonchar"] = Keyring()
     p = PrivateKeyRowRSA("fedja@fedja", key_size, "fedja")
-    keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u1", p.key_size))
+    keyrings["fedja"].add_private_ring(p, "urosh1")
     p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
-    keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u2", p.key_size))
+    keyrings["fedja"].add_private_ring(p, "urosh2")
     p = PrivateKeyRowRSA("lonchar@lonchar", key_size, "lonchar")
-    keyrings["lonchar"].insert(p)
-    keyrings["fedja"].insert(PublicKeyRowRSA(p.public_key, "urosh", p.key_size))
+    keyrings["lonchar"].add_private_ring(p, "fedja1")
 
 
 if __name__ == '__main__':

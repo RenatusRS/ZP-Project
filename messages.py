@@ -112,7 +112,7 @@ def read_message(user: str, message: bytes) -> str:
         key_id  = message[:Cfg.KEY_ID_SIZE]
         message = message[Cfg.KEY_ID_SIZE:]
 
-        private_key_ring = keyrings[user].get_by_key(key_id, False)
+        private_key_ring = keyrings[user].get_private_ring(key_id)
         assert(private_key_ring is not None)
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
@@ -131,7 +131,7 @@ def read_message(user: str, message: bytes) -> str:
         octets = header[:2]
         header = header[2:]
 
-        keyrow = keyrings[user].get_by_key(public_key_id, True)
+        keyrow = keyrings[user].get_public_ring(public_key_id)
         assert(keyrow is not None)
 
         message = keyrow.verify(message, header)
