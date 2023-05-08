@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 
 from Crypto.Random import get_random_bytes
+from Crypto.Cipher import DES3, AES
 import rsa
 
 # ----------------------- Klase ------------------------
@@ -30,6 +31,35 @@ class AsymEnc(Enum):
     ELGAMAL = 2
 
 # --------------------- Funkcije -----------------------
+
+def encrypt_with_session_key(algorithm: SymEnc, session_key: bytes, message: bytes):
+    '''
+    Šifruje poruku 'message' ključem 'session_key' simetričnim algoritmom 'algorithm'
+    '''
+    assert(algorithm == SymEnc.DES3 or algorithm == SymEnc.AES)
+    if algorithm == SymEnc.DES3:
+        cipher = DES3.new(session_key, DES3.MODE_CFB)
+    elif algorithm == SymEnc.AES:
+        cipher = AES.new(session_key, AES.MODE_CFB)
+
+    ciphertext = cipher.encrypt(message)
+    return ciphertext, cipher.iv
+
+
+def decrypt_with_session_key(algorithm: SymEnc, session_key: bytes, iv: bytes, message: bytes) -> bytes:
+    '''
+    Dešifruje poruku 'message' ključem 'session_key' simetričnim algoritmom 'algorithm' i inicijalnim vektorom 'iv'
+    '''
+    assert(algorithm == SymEnc.DES3 or algorithm == SymEnc.AES)
+    if algorithm == SymEnc.DES3:
+        cipher = DES3.new(session_key, DES3.MODE_CFB, iv)
+    elif algorithm == SymEnc.AES:
+        cipher = AES.new(session_key, AES.MODE_CFB, iv)
+
+    plaintext = cipher.decrypt(message)
+    return plaintext
+
+
 
 def gen_timestamp() -> bytes:
     '''
