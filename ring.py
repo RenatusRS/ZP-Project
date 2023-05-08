@@ -12,11 +12,13 @@ from abc import ABC, abstractmethod
 
 
 class PrivateKeyRow(ABC):
-    def __init__(self, user_id: str, password: str):
+    def __init__(self, user_id: str, key_size: str):
         assert(len(user_id) > 0)
+        assert(key_size == 1024 or key_size == 2048)
 
-        self.timestamp: bytes       = gen_timestamp()
-        self.user_id: str           = user_id
+        self.timestamp: bytes = gen_timestamp()
+        self.user_id: str     = user_id
+        self.key_size: int    = key_size
 
 
     @staticmethod
@@ -79,8 +81,7 @@ class PrivateKeyRow(ABC):
 
 class PrivateKeyRowRSA(PrivateKeyRow):
     def __init__(self, user_id: str, key_size: int, password: str):
-        assert(key_size == 1024 or key_size == 2048)
-        super().__init__(user_id, password)
+        super().__init__(user_id, key_size)
         self._algo = AsymEnc.RSA
 
         public_key, private_key = rsa.newkeys(key_size)
@@ -127,9 +128,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
 class PrivateKeyRowElGamal(PrivateKeyRow):
     def __init__(self, user_id: str, key_size: int, password: str):
-        assert(key_size == 1024 or key_size == 2048)
-
-        super().__init__(user_id, password)
+        super().__init__(user_id, key_size)
         self._algo = AsymEnc.ELGAMAL
 
         self._key_id = None
@@ -163,11 +162,13 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
 class PublicKeyRow(ABC):
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, key_size: int):
         assert(len(user_id) > 0)
+        assert(key_size == 1024 or key_size == 2048)
 
-        self.timestamp: bytes          = gen_timestamp()
-        self.user_id: str              = user_id
+        self.timestamp: bytes = gen_timestamp()
+        self.user_id: str     = user_id
+        self.key_size: int    = key_size
 
 
     def __repr__(self):
@@ -199,9 +200,9 @@ class PublicKeyRow(ABC):
 
 
 class PublicKeyRowRSA(PublicKeyRow):
-    def __init__(self, public_key: rsa.PublicKey, user_id: str):
+    def __init__(self, public_key: rsa.PublicKey, user_id: str, key_size: int):
         assert(public_key is not None)
-        super().__init__(user_id)
+        super().__init__(user_id, key_size)
         self._key_id: bytes             = get_key_id(public_key)
         self._public_key: rsa.PublicKey = public_key
         self._algo: AsymEnc             = AsymEnc.RSA
@@ -223,9 +224,9 @@ class PublicKeyRowRSA(PublicKeyRow):
 
 
 class PublicKeyRowElGamal(PublicKeyRow):
-    def __init__(self, public_key, user_id: str):
+    def __init__(self, public_key, user_id: str, key_size):
         assert(public_key is not None)
-        super().__init__(user_id)
+        super().__init__(user_id, key_size)
         self._key_id: bytes             = get_key_id(public_key)
         self._public_key: rsa.PublicKey = public_key
         self._algo: AsymEnc             = AsymEnc.ELGAMAL
@@ -288,17 +289,19 @@ keyrings: Dict[str, Keyring] = { }
 
 
 def populate():
+    key_size = 1024
+
     keyrings["fedja"] = Keyring()
     keyrings["lonchar"] = Keyring()
-    p = PrivateKeyRowRSA("fedja@fedja", 1024, "fedja")
+    p = PrivateKeyRowRSA("fedja@fedja", key_size, "fedja")
     keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u1"))
-    p = PrivateKeyRowRSA("djafe@djafe", 1024, "fedja")
+    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u1", p.key_size))
+    p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
     keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u2"))
-    p = PrivateKeyRowRSA("lonchar@lonchar", 1024, "lonchar")
+    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u2", p.key_size))
+    p = PrivateKeyRowRSA("lonchar@lonchar", key_size, "lonchar")
     keyrings["lonchar"].insert(p)
-    keyrings["fedja"].insert(PublicKeyRowRSA(p.public_key, "urosh"))
+    keyrings["fedja"].insert(PublicKeyRowRSA(p.public_key, "urosh", p.key_size))
 
 
 if __name__ == '__main__':
