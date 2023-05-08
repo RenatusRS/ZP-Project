@@ -18,17 +18,6 @@ import time
 import sys
 
 
-# --------------------- Konstante ----------------------
-
-RSA_BITS: int                    = 1024
-ENCRYPTED_SESSION_KEY_BYTES: int = int(RSA_BITS/8)
-SHA1_BYTE_SIZE: int              = int(RSA_BITS/8)
-MESSAGE_METADATA: int            = 4
-
-AUTH_HEADER_SIZE: int            = Cfg.TIMESTAMP_BYTE_SIZE + Cfg.KEY_ID_SIZE + 2 + SHA1_BYTE_SIZE
-
-# ------------------------------------------------------
-
 # ------------- Radix64 i de(kompresija) ---------------
 
 def compression(message: bytes) -> bytes:
@@ -110,7 +99,7 @@ def authentication(message: bytes, auth: PrivateKeyRow) -> bytes:
         return message
 
 
-def auth_check(message: bytes, user: str) -> None:
+def auth_check(message: bytes, user: str) -> bytes:
     '''
     Sklanja zaglavlje sa poruke i proverava da li je hash ispravan
 
@@ -118,7 +107,7 @@ def auth_check(message: bytes, user: str) -> None:
     user    -- string koji identifikuje korisnika koji proverava autentikaciju
     '''
 
-    header = message[:AUTH_HEADER_SIZE]
+    header = message
 
     timestamp = header[:Cfg.TIMESTAMP_BYTE_SIZE]
     header = header[Cfg.TIMESTAMP_BYTE_SIZE:]
@@ -126,14 +115,16 @@ def auth_check(message: bytes, user: str) -> None:
     header = header[Cfg.KEY_ID_SIZE:]
     octets = header[:2]
     header = header[2:]
-    digest = header[:SHA1_BYTE_SIZE]
 
     keyrow = keyrings[user].get_by_key(public_key_id, True)
     assert(keyrow is not None)
     pu = keyrow.public_key
     assert(keyrow.algo is AsymEnc.RSA or keyrow.algo is AsymEnc.ELGAMAL)
 
-    message = message[AUTH_HEADER_SIZE:]
+    SHA1_BYTE_SIZE = int(keyrow.key_size/8)
+    digest = header[:SHA1_BYTE_SIZE]
+
+    message = message[keyrow.auth_header_size():]
     if keyrow.algo is AsymEnc.RSA:
         try:
             rsa.verify(message, digest, pu)
@@ -141,7 +132,7 @@ def auth_check(message: bytes, user: str) -> None:
             print("\n>>>Verification Error<<<\n") # TODO
     elif keyrow.algo is AsymEnc.ELGAMAL:
         raise Exception("Not yet implemented")
-    return
+    return message
 
 
 def encryption(message: bytes, encr: Tuple[PublicKeyRow, SymEnc]) -> bytes:
@@ -163,22 +154,28 @@ def encryption(message: bytes, encr: Tuple[PublicKeyRow, SymEnc]) -> bytes:
         return message
 
 
-def decryption(message: bytes, decr: Tuple[AsymEnc, rsa.PrivateKey, SymEnc]) -> bytes:
-    assert(decr[0] is AsymEnc.RSA or decr[0] is AsymEnc.ELGAMAL)
-    if decr[0] is AsymEnc.RSA:
+def decryption(message: bytes, decr: Tuple[PrivateKeyRow, SymEnc]) -> bytes:
+    if decr[0].algo is AsymEnc.RSA:
+        ENCRYPTED_SESSION_KEY_BYTES = int(decr[0].key_size/8)
+
         enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
         message = message[ENCRYPTED_SESSION_KEY_BYTES:]
 
-        block_size = AES.block_size if decr[2] == SymEnc.AES else DES3.block_size
+        block_size = AES.block_size if decr[1] == SymEnc.AES else DES3.block_size
 
         iv = message[:block_size]
         message = message[block_size:]
 
-        session_key = rsa.decrypt(enc_session_key, decr[1])
-        message = decrypt_with_session_key(decr[2], session_key, iv, message)
+        private_key = decr[0].get_private_key()
+        assert(private_key is not None)
+
+        session_key = rsa.decrypt(enc_session_key, private_key)
+        message = decrypt_with_session_key(decr[1], session_key, iv, message)
         return message
-    if decr[0] is AsymEnc.ELGAMAL:
+
+    if decr[0].algo is AsymEnc.ELGAMAL:
         return message
+    raise Exception("Nonexisting branch")
 
 
 def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth: PrivateKeyRow = None, compr: bool = False, radix64: bool = False) -> bytes:
@@ -232,8 +229,8 @@ def read_message(user: str, message: bytes) -> str:
         # konvertujemo nazad iz radix64
         message = radix64_to_message(message)
 
-    header = message[:MESSAGE_METADATA]
-    message = message[MESSAGE_METADATA:]
+    header = message[:Cfg.MESSAGE_METADATA]
+    message = message[Cfg.MESSAGE_METADATA:]
 
     f_auth = int.from_bytes(header[0:1], sys.byteorder)
     f_asym = int.from_bytes(header[1:2], sys.byteorder)
@@ -247,18 +244,17 @@ def read_message(user: str, message: bytes) -> str:
         key_id  = message[:Cfg.KEY_ID_SIZE]
         message = message[Cfg.KEY_ID_SIZE:]
 
-        private_key = keyrings[user].get_by_key(key_id, False).get_private_key()
-        assert(private_key is not None)
+        private_key_ring = keyrings[user].get_by_key(key_id, False)
+        assert(private_key_ring is not None)
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
-        message = decryption(message, (AsymEnc(f_asym), private_key, SymEnc(f_sym)))
+        message = decryption(message, (private_key_ring, SymEnc(f_sym)))
     if f_comp:
         # dekompresujemo poruku
         message = decompression(message)
     if f_auth:
         # sklanjamo zaglavlje za autentikaciju i proveravamo ispravnost potpisa
-        auth_check(message, user)
-        message = message[AUTH_HEADER_SIZE:]
+        message = auth_check(message, user)
 
     timestamp = message[0:Cfg.TIMESTAMP_BYTE_SIZE]
     # sklanjamo timestamp

@@ -1,6 +1,7 @@
 from typing import Union, List, Dict
 
 from utils import AsymEnc, gen_timestamp, get_key_id, timestamp_to_string
+from config import Cfg
 import pickle
 
 import rsa
@@ -12,7 +13,7 @@ from abc import ABC, abstractmethod
 
 
 class PrivateKeyRow(ABC):
-    def __init__(self, user_id: str, key_size: str):
+    def __init__(self, user_id: str, key_size: int):
         assert(len(user_id) > 0)
         assert(key_size == 1024 or key_size == 2048)
 
@@ -181,6 +182,11 @@ class PublicKeyRow(ABC):
         return rpr
 
 
+    @abstractmethod
+    def auth_header_size(self):
+        pass
+
+
     @property
     @abstractmethod
     def algo(self):
@@ -208,6 +214,10 @@ class PublicKeyRowRSA(PublicKeyRow):
         self._algo: AsymEnc             = AsymEnc.RSA
 
 
+    def auth_header_size(self):
+        return Cfg.TIMESTAMP_BYTE_SIZE + Cfg.KEY_ID_SIZE + 2 + int(self.key_size/8)
+
+
     @property
     def algo(self):
         return self._algo
@@ -230,6 +240,10 @@ class PublicKeyRowElGamal(PublicKeyRow):
         self._key_id: bytes             = get_key_id(public_key)
         self._public_key: rsa.PublicKey = public_key
         self._algo: AsymEnc             = AsymEnc.ELGAMAL
+
+
+    def auth_header_size(self):
+        raise Exception("Not yet implemented")
 
 
     @property
