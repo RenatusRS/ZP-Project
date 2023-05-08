@@ -204,6 +204,33 @@ class PublicKeyRowRSA(PublicKeyRow):
         super().__init__(user_id)
         self._key_id: bytes             = get_key_id(public_key)
         self._public_key: rsa.PublicKey = public_key
+        self._algo: AsymEnc             = AsymEnc.RSA
+
+
+    @property
+    @abstractmethod
+    def algo(self):
+        return self._algo
+
+
+    @property
+    @abstractmethod
+    def key_id(self):
+        return self._key_id
+
+
+    @property
+    @abstractmethod
+    def public_key(self):
+        return self._public_key
+
+
+class PublicKeyRowElGamal(PublicKeyRow):
+    def __init__(self, public_key, user_id: str):
+        assert(public_key is not None)
+        super().__init__(user_id)
+        self._key_id: bytes             = get_key_id(public_key)
+        self._public_key: rsa.PublicKey = public_key
         self._algo: AsymEnc             = AsymEnc.ELGAMAL
 
 
