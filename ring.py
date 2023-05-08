@@ -8,24 +8,14 @@ from Crypto.Cipher import CAST
 
 import sys
 
+from abc import ABC, abstractmethod
 
-class PrivateKeyRow:
-    def __init__(self, user_id: str, algo: AsymEnc, key_size: int, password: str):
+
+class PrivateKeyRow(ABC):
+    def __init__(self, user_id: str, password: str):
         assert(len(user_id) > 0)
-        assert(algo is AsymEnc.RSA or algo is AsymEnc.ELGAMAL)
-        assert(key_size == 1024 or key_size == 2048)
-
-        # TODO za Elgamal
-        public_key, private_key = rsa.newkeys(key_size)
-
-        cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
-        enc_private_key = cipher.encrypt(pickle.dumps(private_key))
 
         self.timestamp: bytes       = gen_timestamp()
-        self.key_id: bytes          = get_key_id(public_key)
-        self.public_key: rsa.PublicKey = public_key
-        self.algo: AsymEnc          = algo
-        self.enc_private_key: bytes = enc_private_key
         self.user_id: str           = user_id
 
 
@@ -47,6 +37,62 @@ class PrivateKeyRow:
         return pw1
 
 
+    def __repr__(self):
+        rpr = '------------ ' + self.user_id +  ' ------------\n'
+        rpr += 'timestamp: ' + timestamp_to_string(self.timestamp) + '\n'
+        rpr += 'key_id:    ' + str(int.from_bytes(self.key_id, sys.byteorder)) + '\n'
+        # rpr += str(self.public_key) + '\n'
+        rpr += 'algorithm: ' + self.algo.name + '\n'
+        # rpr += str(int.from_bytes(self.enc_private_key, sys.byteorder)) + ')\n'
+        rpr += '--------------------------' + '-'*len(self.user_id) + '\n'
+        return rpr
+
+
+    @property
+    @abstractmethod
+    def algo(self):
+        pass
+
+
+    @property
+    @abstractmethod
+    def key_id(self):
+        pass
+
+
+    @property
+    @abstractmethod
+    def public_key(self):
+        pass
+
+
+    @property
+    @abstractmethod
+    def enc_private_key(self):
+        pass
+
+
+    @abstractmethod
+    def get_private_key(self):
+        pass
+
+
+class PrivateKeyRowRSA(PrivateKeyRow):
+    def __init__(self, user_id: str, key_size: int, password: str):
+        assert(key_size == 1024 or key_size == 2048)
+        super().__init__(user_id, password)
+        self._algo = AsymEnc.RSA
+
+        public_key, private_key = rsa.newkeys(key_size)
+
+        cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+        enc_private_key = cipher.encrypt(pickle.dumps(private_key))
+
+        self._key_id: bytes             = get_key_id(public_key)
+        self._public_key: rsa.PublicKey = public_key
+        self._enc_private_key: bytes    = enc_private_key
+
+
     def get_private_key(self) -> Union[rsa.PrivateKey, None]:
         try:
             password = input("Unesi master šifru: ")
@@ -59,15 +105,24 @@ class PrivateKeyRow:
             return None
 
 
-    def __repr__(self):
-        rpr = '------------ ' + self.user_id +  ' ------------\n'
-        rpr += 'timestamp: ' + timestamp_to_string(self.timestamp) + '\n'
-        rpr += 'key_id:    ' + str(int.from_bytes(self.key_id, sys.byteorder)) + '\n'
-        # rpr += str(self.public_key) + '\n'
-        rpr += 'algorithm: ' + self.algo.name + '\n'
-        # rpr += str(int.from_bytes(self.enc_private_key, sys.byteorder)) + ')\n'
-        rpr += '--------------------------' + '-'*len(self.user_id) + '\n'
-        return rpr
+    @property
+    def algo(self):
+        return self._algo
+
+
+    @property
+    def key_id(self):
+        return self._key_id
+
+
+    @property
+    def public_key(self):
+        return self._public_key
+
+
+    @property
+    def enc_private_key(self):
+        return self._enc_private_key
 
 
 class PublicKeyRow:
@@ -135,13 +190,13 @@ keyrings: Dict[str, Keyring] = { }
 def populate():
     keyrings["fedja"] = Keyring()
     keyrings["lonchar"] = Keyring()
-    p = PrivateKeyRow("fedja@fedja", AsymEnc.RSA, 1024, "fedja")
+    p = PrivateKeyRowRSA("fedja@fedja", 1024, "fedja")
     keyrings["fedja"].insert(p)
     keyrings["lonchar"].insert(PublicKeyRow(p.public_key, "u1", p.algo))
-    p = PrivateKeyRow("djafe@djafe", AsymEnc.RSA, 1024, "fedja")
+    p = PrivateKeyRowRSA("djafe@djafe", 1024, "fedja")
     keyrings["fedja"].insert(p)
     keyrings["lonchar"].insert(PublicKeyRow(p.public_key, "u2", p.algo))
-    p = PrivateKeyRow("lonchar@lonchar", AsymEnc.RSA, 1024, "lonchar")
+    p = PrivateKeyRowRSA("lonchar@lonchar", 1024, "lonchar")
     keyrings["lonchar"].insert(p)
     keyrings["fedja"].insert(PublicKeyRow(p.public_key, "urosh", p.algo))
 
