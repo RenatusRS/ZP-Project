@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from typing import Tuple, Union
-from utils import SymEnc, AsymEnc, get_key_id, gen_timestamp, generate_session_key
+from utils import SymEnc, AsymEnc, gen_timestamp, generate_session_key
 from config import Cfg
 from ring import keyrings, PrivateKeyRow, PublicKeyRow
 

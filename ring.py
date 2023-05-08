@@ -1,11 +1,14 @@
 from typing import Union, List, Dict
 
-from utils import AsymEnc, SymEnc, gen_timestamp, get_key_id, timestamp_to_string, generate_session_key, encrypt_with_session_key, decrypt_with_session_key
+from utils import AsymEnc, SymEnc, gen_timestamp, get_key_id_RSA, get_key_id_DSA, timestamp_to_string, generate_session_key, encrypt_with_session_key, decrypt_with_session_key
 from config import Cfg
 import pickle
 
 import rsa
 from Crypto.Cipher import CAST, AES, DES3
+from Crypto.PublicKey import DSA
+from Crypto.Signature import DSS
+from Crypto.Hash import SHA256
 
 import sys
 
@@ -105,7 +108,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
         enc_private_key = cipher.encrypt(pickle.dumps(private_key))
 
-        self._key_id: bytes             = get_key_id(public_key)
+        self._key_id: bytes             = get_key_id_RSA(public_key)
         self._public_key: rsa.PublicKey = public_key
         self._enc_private_key: bytes    = enc_private_key
 
@@ -191,10 +194,14 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         super().__init__(user_id, key_size)
         self._algo = AsymEnc.ELGAMAL
 
-        self._key_id = None
-        self._public_key = None
-        self._enc_private_key = None
-        raise Exception("Not yet implemented")
+        keypair = DSA.generate(key_size)
+        self._public_key = keypair.publickey()
+        self._key_id = get_key_id_DSA(self._public_key)
+
+        cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+        enc_private_key = cipher.encrypt(keypair.export_key(format='DER'))
+
+        self._enc_private_key = enc_private_key
 
 
     def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
@@ -206,11 +213,20 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
     def add_public_key(self, name: str):
-        raise Exception("Not yet implemented")
+        p = PublicKeyRowElGamal(self.public_key, name, self.key_size)
+        Keyring.public.append(p)
 
 
     def get_private_key(self):
-        raise Exception("Not yet implemented")
+        try:
+            password = input("Unesi master šifru: ")
+            eiv = self.enc_private_key[:CAST.block_size+2]
+            temp = self.enc_private_key[CAST.block_size+2:]
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
+            priv = cipher.decrypt(temp)
+            return DSA.import_key(priv)
+        except ValueError:
+            return None
 
 
     @property
@@ -290,7 +306,7 @@ class PublicKeyRowRSA(PublicKeyRow):
     def __init__(self, public_key: rsa.PublicKey, user_id: str, key_size: int):
         assert(public_key is not None)
         super().__init__(user_id, key_size)
-        self._key_id: bytes             = get_key_id(public_key)
+        self._key_id: bytes             = get_key_id_RSA(public_key)
         self._public_key: rsa.PublicKey = public_key
         self._algo: AsymEnc             = AsymEnc.RSA
 
@@ -348,17 +364,15 @@ class PublicKeyRowElGamal(PublicKeyRow):
     def __init__(self, public_key, user_id: str, key_size):
         assert(public_key is not None)
         super().__init__(user_id, key_size)
-        self._key_id: bytes             = get_key_id(public_key)
-        self._public_key: rsa.PublicKey = public_key
-        self._algo: AsymEnc             = AsymEnc.ELGAMAL
+        self._key_id: bytes          = get_key_id_DSA(public_key)
+        self._public_key: DSA.DsaKey = public_key
+        self._algo: AsymEnc          = AsymEnc.ELGAMAL
 
 
-    @abstractmethod
     def verify(self, message: bytes, header: bytes) -> bytes:
         raise Exception("Not yet implemented")
 
 
-    @abstractmethod
     def encrypt(self, message: bytes, algo: SymEnc) -> bytes:
         raise Exception("Not yet implemented")
 
