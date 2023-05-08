@@ -209,7 +209,21 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
     def sign(self, message: bytes):
-        raise Exception("Not yet implemented")
+        private_key = self.get_private_key()
+        assert(private_key is not None)
+
+        header: bytes = b''
+        header += gen_timestamp() # timestamp - prvih TIMESTAMP_BYTE_SIZE bajtova
+        header += self.key_id # ID javnog ključa pošiljaoca - 8 bajtova
+
+        hsh = SHA256.new(message)
+        signer = DSS.new(private_key, 'fips-186-3')
+        signature = signer.sign(hsh)
+
+        header += hsh.digest()[0:2] # prva dva okteta hash-a
+        header += signature # šifrovan hash
+
+        return header
 
 
     def add_public_key(self, name: str):
@@ -370,7 +384,22 @@ class PublicKeyRowElGamal(PublicKeyRow):
 
 
     def verify(self, message: bytes, header: bytes) -> bytes:
-        raise Exception("Not yet implemented")
+        pu = self.public_key
+
+        dss_sign_size = 40 if self.key_size == 1024 else 56
+        signature = header[:dss_sign_size]
+
+        message = message[self.auth_header_size():]
+        hsh = SHA256.new(message)
+
+        verifier = DSS.new(pu, 'fips-186-3')
+
+        try:
+            verifier.verify(hsh, signature)
+        except ValueError:
+            print("\n>>>Verification Error<<<\n") # TODO
+
+        return message
 
 
     def encrypt(self, message: bytes, algo: SymEnc) -> bytes:
@@ -378,7 +407,8 @@ class PublicKeyRowElGamal(PublicKeyRow):
 
 
     def auth_header_size(self):
-        raise Exception("Not yet implemented")
+        dss_sign_size = 40 if self.key_size == 1024 else 56
+        return Cfg.TIMESTAMP_BYTE_SIZE + Cfg.KEY_ID_SIZE + 2 + dss_sign_size
 
 
     @property
