@@ -208,19 +208,16 @@ class PublicKeyRowRSA(PublicKeyRow):
 
 
     @property
-    @abstractmethod
     def algo(self):
         return self._algo
 
 
     @property
-    @abstractmethod
     def key_id(self):
         return self._key_id
 
 
     @property
-    @abstractmethod
     def public_key(self):
         return self._public_key
 
@@ -235,19 +232,16 @@ class PublicKeyRowElGamal(PublicKeyRow):
 
 
     @property
-    @abstractmethod
     def algo(self):
         return self._algo
 
 
     @property
-    @abstractmethod
     def key_id(self):
         return self._key_id
 
 
     @property
-    @abstractmethod
     def public_key(self):
         return self._public_key
 
