@@ -57,7 +57,6 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
-
     def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         pass
 
@@ -446,14 +445,6 @@ def populate():
     keyrings["fedja"].add_private_ring(p, "urosh2")
     p = PrivateKeyRowRSA("lonchar@lonchar", key_size, "lonchar")
     keyrings["lonchar"].add_private_ring(p, "fedja1")
-    keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u1", p.key_size))
-    p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
-    keyrings["fedja"].insert(p)
-    keyrings["lonchar"].insert(PublicKeyRowRSA(p.public_key, "u2", p.key_size))
-    p = PrivateKeyRowRSA("lonchar@lonchar", key_size, "lonchar")
-    keyrings["lonchar"].insert(p)
-    keyrings["fedja"].insert(PublicKeyRowRSA(p.public_key, "urosh", p.key_size))
 
 
 if __name__ == '__main__':
