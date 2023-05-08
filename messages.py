@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from typing import Tuple, Union
-from utils import SymEnc, AsymEnc, get_key_id, gen_timestamp, generate_session_key
+from utils import SymEnc, AsymEnc, gen_timestamp, generate_session_key
 from config import Cfg
 from ring import keyrings, PrivateKeyRow, PublicKeyRow
 
@@ -68,9 +68,9 @@ def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth:
         encoded = encr[0].encrypt(encoded, encr[1])
 
     header = b''
-    header += auth.algo.value.to_bytes(1, sys.byteorder) if auth else b'0'
-    header += encr[0].algo.value.to_bytes(1, sys.byteorder) if encr else b'0'
-    header += encr[1].value.to_bytes(1, sys.byteorder) if encr else b'0'
+    header += auth.algo.value.to_bytes(1, sys.byteorder) if auth else b'\x00'
+    header += encr[0].algo.value.to_bytes(1, sys.byteorder) if encr else b'\x00'
+    header += encr[1].value.to_bytes(1, sys.byteorder) if encr else b'\x00'
     header += compr.to_bytes(1, sys.byteorder)
     encoded = header + encoded
 

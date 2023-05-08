@@ -10,6 +10,7 @@ from datetime import datetime
 
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import DES3, AES
+from Crypto.PublicKey import DSA
 import rsa
 
 # ----------------------- Klase ------------------------
@@ -84,7 +85,7 @@ def generate_session_key() -> bytes:
     return get_random_bytes(Cfg.SESSION_KEY_BYTES)
 
 
-def get_key_id(key: Union[rsa.PrivateKey, rsa.PublicKey]) -> bytes:
+def get_key_id_RSA(key: Union[rsa.PrivateKey, rsa.PublicKey]) -> bytes:
     '''
     Uzima 64 najmanje značajnih bita privatnog ili javnog ključa i pretvara ih
     u bytearray veličine 8 bajtova
@@ -92,6 +93,11 @@ def get_key_id(key: Union[rsa.PrivateKey, rsa.PublicKey]) -> bytes:
     key -- ključ za koji se uzima ID
     '''
     return (key.n % 2**64).to_bytes(Cfg.KEY_ID_SIZE, sys.byteorder)
+
+
+def get_key_id_DSA(key: DSA.DsaKey) -> bytes:
+    n = int.from_bytes(key.export_key(format='DER'), sys.byteorder)
+    return (n % 2**64).to_bytes(Cfg.KEY_ID_SIZE, sys.byteorder)
 
 # ------------------------------------------------------
 
