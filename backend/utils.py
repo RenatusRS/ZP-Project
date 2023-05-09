@@ -2,7 +2,7 @@
 from typing import Union
 
 from enum import Enum
-from config import Cfg
+from backend.config import Cfg
 import calendar, time
 import sys
 
