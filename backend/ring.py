@@ -1,7 +1,7 @@
-from typing import Union, List, Dict
+from typing import List, Dict
 
-from utils import AsymEnc, SymEnc, gen_timestamp, get_key_id_RSA, get_key_id_DSA, timestamp_to_string, generate_session_key, encrypt_with_session_key, decrypt_with_session_key
-from config import Cfg
+from backend.utils import AsymEnc, SymEnc, gen_timestamp, get_key_id_RSA, get_key_id_DSA, timestamp_to_string, generate_session_key, encrypt_with_session_key, decrypt_with_session_key
+from backend.config import Cfg
 import pickle
 
 import rsa
@@ -60,12 +60,12 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
-    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc, password: str) -> bytes:
         pass
 
 
     @abstractmethod
-    def sign(self, message: bytes):
+    def sign(self, message: bytes, password: str):
         pass
 
 
@@ -94,7 +94,7 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
-    def get_private_key(self):
+    def get_private_key(self, password: str):
         pass
 
 
@@ -113,7 +113,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         self._enc_private_key: bytes    = enc_private_key
 
 
-    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc, password: str) -> bytes:
         ENCRYPTED_SESSION_KEY_BYTES = int(self.key_size/8)
 
         enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
@@ -124,7 +124,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         iv = message[:block_size]
         message = message[block_size:]
 
-        private_key = self.get_private_key()
+        private_key = self.get_private_key(password)
         assert(private_key is not None)
 
         session_key = rsa.decrypt(enc_session_key, private_key)
@@ -132,8 +132,8 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         return message
 
 
-    def sign(self, message: bytes) -> bytes:
-        private_key = self.get_private_key()
+    def sign(self, message: bytes, password: str) -> bytes:
+        private_key = self.get_private_key(password)
         assert(private_key is not None)
 
         header: bytes = b''
@@ -157,9 +157,8 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
 
 
-    def get_private_key(self) -> Union[rsa.PrivateKey, None]:
+    def get_private_key(self, password: str):
         try:
-            password = input("Unesi master šifru: ")
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
             cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
@@ -204,12 +203,12 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         self._enc_private_key = enc_private_key
 
 
-    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc, password: str) -> bytes:
         raise Exception("Not yet implemented")
 
 
-    def sign(self, message: bytes):
-        private_key = self.get_private_key()
+    def sign(self, message: bytes, password: str):
+        private_key = self.get_private_key(password)
         assert(private_key is not None)
 
         header: bytes = b''
@@ -231,9 +230,8 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         Keyring.public.append(p)
 
 
-    def get_private_key(self):
+    def get_private_key(self, password: str):
         try:
-            password = input("Unesi master šifru: ")
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
             cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
@@ -447,6 +445,20 @@ class Keyring:
             if row.key_id == key_id:
 
                 return row
+        return None
+    
+    def get_private_ring_by_user_id(self, user_id: str):
+        for row in self.private:
+            if row.user_id == user_id:
+                return row
+                    
+        return None
+    
+    def get_public_ring_by_user_id(self, user_id: str):
+        for row in Keyring.public:
+            if row.user_id == user_id:
+                return row
+					
         return None
 
 

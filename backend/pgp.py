@@ -1,8 +1,8 @@
 
-from ring import populate, keyrings, Keyring
+from backend.ring import populate, keyrings, Keyring
 
-from messages import create_message, read_message, send_message, receive_message
-from utils import AsymEnc, SymEnc
+from backend.messages import create_message, read_message, send_message, receive_message
+from backend.utils import AsymEnc, SymEnc
 
 if __name__ == '__main__':
     populate()

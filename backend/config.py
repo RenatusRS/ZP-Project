@@ -5,6 +5,7 @@ class Cfg:
     TIMESTAMP_BYTE_SIZE = 32
     SESSION_KEY_BYTES   = 16
     MESSAGE_METADATA    = 4 # minimalno 4
+    USERNAME = "default"
 
 
 if __name__ == '__main__':
