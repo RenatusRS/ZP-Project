@@ -2,8 +2,11 @@ from tkinter import simpledialog
 from gui.base import BaseFrame
 from tkinter import *
 from backend.config import Cfg
+from backend.utils import timestamp_to_string
 
 from backend.ring import Keyring, PublicKeyRow, keyrings, PrivateKeyRow
+
+import sys
 
 
 class Table(Frame):
@@ -26,14 +29,18 @@ class PrivateTable(Table):
 	
 
 	def insert(self, private_key: PrivateKeyRow):
+		timestamp = timestamp_to_string(private_key.timestamp)
+
 		entry_timestamp = Entry(self)
-		entry_timestamp.insert(0, private_key.timestamp)
+		entry_timestamp.insert(0, timestamp)
 		entry_timestamp.config(state="readonly")
 		entry_timestamp['readonlybackground'] = "white"
 		entry_timestamp['relief'] = 'ridge'
+
+		key_id = int.from_bytes(private_key.key_id, sys.byteorder)
 		
 		entry_id = Entry(self)
-		entry_id.insert(0, private_key.key_id)
+		entry_id.insert(0, key_id)
 		entry_id.config(state="readonly")
 		entry_id['readonlybackground'] = "white"
 		entry_id['relief'] = 'ridge'
@@ -104,14 +111,18 @@ class PublicTable(Table):
 			
 			
 	def insert(self, public_key: PublicKeyRow):
+		timestamp = timestamp_to_string(public_key.timestamp)
+
 		entry_timestamp = Entry(self)
-		entry_timestamp.insert(0, public_key.timestamp)
+		entry_timestamp.insert(0, timestamp)
 		entry_timestamp.config(state="readonly")
 		entry_timestamp['readonlybackground'] = "white"
 		entry_timestamp['relief'] = 'ridge'
+
+		key_id = int.from_bytes(public_key.key_id, sys.byteorder)
 		
 		entry_id = Entry(self)
-		entry_id.insert(0, public_key.key_id)
+		entry_id.insert(0, key_id)
 		entry_id.config(state="readonly")
 		entry_id['readonlybackground'] = "white"
 		entry_id['relief'] = 'ridge'
