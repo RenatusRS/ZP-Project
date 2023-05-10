@@ -60,12 +60,12 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
-    def decrypt(self, message: bytes, decr: SymEnc, password: str) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         pass
 
 
     @abstractmethod
-    def sign(self, message: bytes, password: str):
+    def sign(self, message: bytes):
         pass
 
 
@@ -94,7 +94,7 @@ class PrivateKeyRow(ABC):
 
 
     @abstractmethod
-    def get_private_key(self, password: str):
+    def get_private_key(self):
         pass
 
 
@@ -113,7 +113,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         self._enc_private_key: bytes    = enc_private_key
 
 
-    def decrypt(self, message: bytes, decr: SymEnc, password: str) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         ENCRYPTED_SESSION_KEY_BYTES = int(self.key_size/8)
 
         enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
@@ -124,7 +124,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         iv = message[:block_size]
         message = message[block_size:]
 
-        private_key = self.get_private_key(password)
+        private_key = self.get_private_key()
         assert(private_key is not None)
 
         session_key = rsa.decrypt(enc_session_key, private_key)
@@ -132,8 +132,8 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         return message
 
 
-    def sign(self, message: bytes, password: str) -> bytes:
-        private_key = self.get_private_key(password)
+    def sign(self, message: bytes) -> bytes:
+        private_key = self.get_private_key()
         assert(private_key is not None)
 
         header: bytes = b''
@@ -157,7 +157,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
 
 
-    def get_private_key(self, password: str):
+    def get_private_key(self):
         try:
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
@@ -203,12 +203,12 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         self._enc_private_key = enc_private_key
 
 
-    def decrypt(self, message: bytes, decr: SymEnc, password: str) -> bytes:
+    def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
         raise Exception("Not yet implemented")
 
 
-    def sign(self, message: bytes, password: str):
-        private_key = self.get_private_key(password)
+    def sign(self, message: bytes):
+        private_key = self.get_private_key()
         assert(private_key is not None)
 
         header: bytes = b''
@@ -230,7 +230,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         Keyring.public.append(p)
 
 
-    def get_private_key(self, password: str):
+    def get_private_key(self):
         try:
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
