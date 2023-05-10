@@ -1,4 +1,3 @@
-from tkinter import simpledialog
 from gui.base import BaseFrame
 from tkinter import *
 from backend.config import Cfg
@@ -82,12 +81,7 @@ class PrivateTable(Table):
 		entry_private_key.grid(row=row, column=4, sticky=NSEW)
 		
 	def show(self, private_key: PrivateKeyRow, entry):
-		password = simpledialog.askstring("Password", "Enter password", show="*")
-		
-		if password is None:
-			return
-		
-		decrypted_key = private_key.get_private_key(password)
+		decrypted_key = private_key.get_private_key()
 		
 		if decrypted_key is None:
 			return
