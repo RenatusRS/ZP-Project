@@ -1,3 +1,4 @@
+from tkinter import simpledialog
 from typing import List, Dict
 
 from backend.utils import AsymEnc, SymEnc, gen_timestamp, get_key_id_RSA, get_key_id_DSA, timestamp_to_string, generate_session_key, encrypt_with_session_key, decrypt_with_session_key
@@ -158,6 +159,8 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
 
     def get_private_key(self):
+        password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
+		
         try:
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
@@ -231,6 +234,8 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
     def get_private_key(self):
+        password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
+		
         try:
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
