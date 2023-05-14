@@ -39,7 +39,6 @@ class SendFrame(BaseFrame):
 		var_private_key = StringVar()
 
 		option_private_keys = OptionMenu(self, var_private_key, "", *options_private_keys)
-		entry_private_key_password = Entry(self)
 
 		checkbox_compress = ttkCheckbutton(self, text="Compress")
 		checkbox_compress.state(['!alternate'])
@@ -54,7 +53,7 @@ class SendFrame(BaseFrame):
 									 command=lambda: self.send_message(
 										 text_message.get("1.0", "end-1c"),
 										 (keyrings[Cfg.USERNAME].get_public_ring_by_user_id(var_public_key.get()), SymEnc.AES if radio_group_encrypt.get() == "aes" else SymEnc.DES3) if 'selected' in checkbox_encrypt.state() else None,
-										 (keyrings[Cfg.USERNAME].get_private_ring_by_user_id(var_private_key.get()), entry_private_key_password.get()) if 'selected' in checkbox_authenticate.state() else None,
+										 keyrings[Cfg.USERNAME].get_private_ring_by_user_id(var_private_key.get()) if 'selected' in checkbox_authenticate.state() else None,
 										 'selected' in checkbox_compress.state(),
 										 'selected' in checkbox_convert.state()
 									 	)
@@ -76,9 +75,6 @@ class SendFrame(BaseFrame):
 		
 		Label(self, text="Private Key").pack(side="top", anchor="w")
 		option_private_keys.pack(side="top", anchor="w")
-		
-		Label(self, text="Password").pack(side="top", anchor="w")
-		entry_private_key_password.pack(side="top", anchor="w")
 
 		Separator(self, orient="horizontal").pack(
 			side="top", fill="x", pady=10)

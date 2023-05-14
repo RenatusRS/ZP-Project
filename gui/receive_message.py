@@ -1,4 +1,3 @@
-from tkinter import simpledialog
 from tkinter.filedialog import askopenfile, asksaveasfile
 from gui.base import BaseFrame
 from tkinter import *
@@ -37,12 +36,7 @@ class ReceiveFrame(BaseFrame):
 		if data is None:
 			return
 		
-		password = simpledialog.askstring("Password", "Enter password", show="*")
-		
-		if password is None:
-			return
-		
-		data = read_message(Cfg.USERNAME, data, password)
+		data = read_message(Cfg.USERNAME, data)
 		
 		self.decrypted_data = data
 		    

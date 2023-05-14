@@ -46,7 +46,7 @@ def isBase64(s) -> bool:
 # ------------------------------------------------------
 
 
-def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth: Tuple[PrivateKeyRow, str] = None, compr: bool = False, radix64: bool = False) -> bytes:
+def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth: PrivateKeyRow = None, compr: bool = False, radix64: bool = False) -> bytes:
     '''Kreiranje poruke koja treba da se sačuva negde na disku.
     Parametri:
     message     -- poruka
@@ -59,7 +59,7 @@ def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth:
     encoded = gen_timestamp() + encoded
     if auth:
         # dodajemo zaglavlje ispred poruke (ukupno 42B + veličina ključa u bajtovima)
-        encoded = auth[0].sign(encoded, auth[1]) + encoded
+        encoded = auth.sign(encoded) + encoded
     if compr:
         # kompresujemo poruku
         encoded = compression(encoded)
@@ -68,7 +68,7 @@ def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth:
         encoded = encr[0].encrypt(encoded, encr[1])
 
     header = b''
-    header += auth[0].algo.value.to_bytes(1, sys.byteorder) if auth else b'\x00'
+    header += auth.algo.value.to_bytes(1, sys.byteorder) if auth else b'\x00'
     header += encr[0].algo.value.to_bytes(1, sys.byteorder) if encr else b'\x00'
     header += encr[1].value.to_bytes(1, sys.byteorder) if encr else b'\x00'
     header += compr.to_bytes(1, sys.byteorder)
@@ -80,7 +80,7 @@ def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth:
     return encoded
 
 
-def read_message(user: str, message: bytes, password: str) -> str:
+def read_message(user: str, message: bytes) -> str:
     '''
     Čitanje poruke u obliku bytearray
 
@@ -117,7 +117,7 @@ def read_message(user: str, message: bytes, password: str) -> str:
         assert(private_key_ring is not None)
 
         # dešifrujemo poruku i sklanjamo zaglavlje ispred nje
-        message = private_key_ring.decrypt(message, SymEnc(f_sym), password)
+        message = private_key_ring.decrypt(message, SymEnc(f_sym))
     if f_comp:
         # dekompresujemo poruku
         message = decompression(message)
