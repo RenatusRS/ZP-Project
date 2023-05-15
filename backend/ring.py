@@ -15,11 +15,15 @@ import sys
 
 from abc import ABC, abstractmethod
 
+from backend.exceptions import PasswordException, InputException
+
 
 class PrivateKeyRow(ABC):
     def __init__(self, user_id: str, key_size: int):
-        assert(len(user_id) > 0)
         assert(key_size == 1024 or key_size == 2048)
+
+        if len(user_id) == 0:
+            raise InputException
 
         self.timestamp: bytes = gen_timestamp()
         self.user_id: str     = user_id
@@ -126,7 +130,6 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         message = message[block_size:]
 
         private_key = self.get_private_key()
-        assert(private_key is not None)
 
         session_key = rsa.decrypt(enc_session_key, private_key)
         message = decrypt_with_session_key(decr, session_key, iv, message)
@@ -135,7 +138,6 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
     def sign(self, message: bytes) -> bytes:
         private_key = self.get_private_key()
-        assert(private_key is not None)
 
         header: bytes = b''
         header += gen_timestamp() # timestamp - prvih TIMESTAMP_BYTE_SIZE bajtova
@@ -160,7 +162,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
     def get_private_key(self):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
-		
+
         try:
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
@@ -168,7 +170,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
             priv = pickle.loads(cipher.decrypt(temp))
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
         except pickle.UnpicklingError:
-            return None
+            raise PasswordException
 
 
     @property
@@ -212,7 +214,6 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
     def sign(self, message: bytes):
         private_key = self.get_private_key()
-        assert(private_key is not None)
 
         header: bytes = b''
         header += gen_timestamp() # timestamp - prvih TIMESTAMP_BYTE_SIZE bajtova
@@ -235,7 +236,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
     def get_private_key(self):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
-		
+
         try:
             eiv = self.enc_private_key[:CAST.block_size+2]
             temp = self.enc_private_key[CAST.block_size+2:]
@@ -268,8 +269,9 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 class PublicKeyRow(ABC):
     def __init__(self, user_id: str, key_size: int):
-        assert(len(user_id) > 0)
         assert(key_size == 1024 or key_size == 2048)
+
+        raise InputException
 
         self.timestamp: bytes = gen_timestamp()
         self.user_id: str     = user_id
@@ -451,19 +453,19 @@ class Keyring:
 
                 return row
         return None
-    
+
     def get_private_ring_by_user_id(self, user_id: str):
         for row in self.private:
             if row.user_id == user_id:
                 return row
-                    
+
         return None
-    
+
     def get_public_ring_by_user_id(self, user_id: str):
         for row in Keyring.public:
             if row.user_id == user_id:
                 return row
-					
+
         return None
 
 
