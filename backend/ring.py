@@ -41,6 +41,25 @@ class PrivateKeyRow(ABC):
         return rpr
 
 
+    @staticmethod
+    def cipher_pk(key: bytes, password: str) -> bytes:
+        try:
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+            return cipher.encrypt(key)
+        except ValueError:
+            raise BadPasswordFormat
+
+
+    def decipher_pk(self, password: str) -> bytes:
+        eiv = self.enc_private_key[:CAST.block_size+2]
+        temp = self.enc_private_key[CAST.block_size+2:]
+        try:
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
+            return cipher.decrypt(temp)
+        except ValueError:
+            raise BadPasswordFormat
+
+
     @abstractmethod
     def add_public_key(self, name: str):
         pass
@@ -92,12 +111,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
         public_key, private_key = rsa.newkeys(key_size)
 
-        try:
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
-        except ValueError:
-            raise BadPasswordFormat
-
-        enc_private_key = cipher.encrypt(pickle.dumps(private_key))
+        enc_private_key = self.cipher_pk(pickle.dumps(private_key), password)
 
         self._key_id: bytes             = get_key_id_RSA(public_key)
         self._public_key: rsa.PublicKey = public_key
@@ -150,15 +164,11 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
 
         try:
-            eiv = self.enc_private_key[:CAST.block_size+2]
-            temp = self.enc_private_key[CAST.block_size+2:]
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
-            priv = pickle.loads(cipher.decrypt(temp))
+            temp = self.decipher_pk(password)
+            priv = pickle.loads(temp)
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
         except pickle.UnpicklingError:
             raise WrongPasswordException
-        except ValueError:
-            raise BadPasswordFormat
 
 
     @property
@@ -190,11 +200,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         self._public_key = keypair.publickey()
         self._key_id = get_key_id_DSA(self._public_key)
 
-        try:
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
-        except ValueError:
-            raise BadPasswordFormat
-        enc_private_key = cipher.encrypt(keypair.export_key(format='DER'))
+        enc_private_key = self.cipher_pk(keypair.export_key(format='DER'), password)
 
         self._enc_private_key = enc_private_key
 
@@ -228,13 +234,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
     def get_private_key(self):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
 
-        eiv = self.enc_private_key[:CAST.block_size+2]
-        temp = self.enc_private_key[CAST.block_size+2:]
-        try:
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
-        except ValueError:
-            raise BadPasswordFormat
-
+        temp = self.decipher_pk(password)
         try:
             priv = cipher.decrypt(temp)
             return DSA.import_key(priv)
