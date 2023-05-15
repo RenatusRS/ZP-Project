@@ -121,6 +121,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
         enc_private_key = self.cipher_pk(pickle.dumps(private_key), password)
 
+
         self._key_id: bytes             = get_key_id_RSA(public_key)
         self._public_key: rsa.PublicKey = public_key
         self._enc_private_key: bytes    = enc_private_key
@@ -253,6 +254,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
         temp = self.decipher_pk(password)
         try:
+
             priv = cipher.decrypt(temp)
             return DSA.import_key(priv)
         except ValueError:
