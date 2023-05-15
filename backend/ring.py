@@ -10,12 +10,22 @@ from Crypto.Cipher import CAST, AES, DES3
 from Crypto.PublicKey import DSA
 from Crypto.Signature import DSS
 from Crypto.Hash import SHA256
+import base64
 
 import sys
 
+import re
+
 from abc import ABC, abstractmethod
 
-from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat
+from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat, BadPEMFormat
+
+
+def isBase64(s) -> bool:
+    try:
+        return base64.b64encode(base64.b64decode(s)) == s
+    except Exception:
+        return False
 
 
 class PrivateKeyRow(ABC):
@@ -104,6 +114,11 @@ class PrivateKeyRow(ABC):
         pass
 
 
+    @abstractmethod
+    def export_key(self, filename: str) -> None:
+        pass
+
+
 class PrivateKeyRowRSA(PrivateKeyRow):
     def __init__(self, user_id: str, key_size: int, password: str):
         super().__init__(user_id, key_size)
@@ -169,6 +184,15 @@ class PrivateKeyRowRSA(PrivateKeyRow):
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
         except pickle.UnpicklingError:
             raise WrongPasswordException
+
+
+    def export_key(self, filename: str) -> None:
+        with open(filename + '.pem', 'wb') as f:
+            encoded = base64.b64encode(pickle.dumps(self))
+            f.write(b"-----BEGIN RSA PRIVATE KEY-----\n")
+            f.write(encoded)
+            f.write(b"\n")
+            f.write(b"-----END RSA PRIVATE KEY-----\n")
 
 
     @property
@@ -450,6 +474,7 @@ class Keyring:
                 return row
         return None
 
+
     def get_private_ring_by_user_id(self, user_id: str):
         for row in self.private:
             if row.user_id == user_id:
@@ -457,12 +482,68 @@ class Keyring:
 
         return None
 
+
     def get_public_ring_by_user_id(self, user_id: str):
         for row in Keyring.public:
             if row.user_id == user_id:
                 return row
 
         return None
+
+
+    @staticmethod
+    def read_key(file, algo, is_private):
+        re_emptyline = b'^\s*$'
+        re_end = b'^-----END (RSA|ELGAMAL) (PRIVATE|PUBLIC) KEY-----$'
+        key = None
+        line = file.readline()
+        while line != b'':
+            match_empty = re.search(re_emptyline, line)
+            match_end = re.search(re_end, line)
+            if not match_empty and not match_end:
+                if key:
+                    raise BadPEMFormat # ako se pojavljuje "dva" ključa (u dva različita reda)
+                key = line
+
+            if match_end:
+                algo2 = match_end.group(1)
+                is_private2 = match_end.group(2)
+                if algo2 != algo or is_private != is_private2 or not key: # ako se ne poklaplaju BEGIN i END ili ako ključ ne postoji
+                    raise BadPEMFormat
+                if not isBase64(key): # nije base64
+                    raise BadPEMFormat
+                return base64.b64decode(key)
+
+            line = file.readline()
+        raise BadPEMFormat
+
+
+    def import_key(self, filename: str) -> None:
+        with open(filename, 'rb') as f:
+
+            re_emptyline = b'^\s*$'
+            re_title = b'^-----BEGIN (RSA|ELGAMAL) (PRIVATE|PUBLIC) KEY-----$'
+            line = f.readline()
+            while line != b'':
+                match_empty = re.search(re_emptyline, line)
+                match_title = re.search(re_title, line)
+                if not match_title and not match_empty:
+                    raise BadPEMFormat
+                if match_title:
+                    algo = match_title.group(1)
+                    private = match_title.group(2)
+                    assert(algo == b'RSA' or algo == b'ELGAMAL')
+                    assert(private == b'PRIVATE' or private == b'PUBLIC')
+
+                    key = pickle.loads(self.read_key(f, algo, private))
+                    is_private = (private == b'PRIVATE')
+                    if is_private:
+                        self.add_private_ring(key, key.user_id)
+                    else:
+                        self.public.append(key)
+
+                line = f.readline()
+
 
 
     def add_private_ring(self, ring: PrivateKeyRow, name: str):
