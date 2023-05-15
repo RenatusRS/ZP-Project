@@ -3,7 +3,10 @@ class InputException(Exception):
     pass
 
 
-class PasswordException(Exception):
+class WrongPasswordException(Exception):
     pass
 
+
+class BadPasswordFormat(Exception):
+    pass
 

@@ -15,7 +15,7 @@ import sys
 
 from abc import ABC, abstractmethod
 
-from backend.exceptions import PasswordException, InputException
+from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat
 
 
 class PrivateKeyRow(ABC):
@@ -28,24 +28,6 @@ class PrivateKeyRow(ABC):
         self.timestamp: bytes = gen_timestamp()
         self.user_id: str     = user_id
         self.key_size: int    = key_size
-
-
-    @staticmethod
-    def create_password() -> str:
-        pw1: str = ""
-        pw2: str = ""
-        while True:
-            pw1 = input("Unesite master lozinku: ")
-            pw2 = input("Unesite master lozinku opet: ")
-            l = len(pw1.encode('utf8'))
-            if l > 16 or l < 5:
-                print("Šifra može biti minimalno 5 a maksimalno 16 bajtova")
-            elif pw1 == pw2:
-                print("Par privatnih/javnih ključeva je uspešno napravljen")
-                break
-            else:
-                print("Lozinke se ne slažu, pokušajte ponovo.")
-        return pw1
 
 
     def __repr__(self):
@@ -110,7 +92,11 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
         public_key, private_key = rsa.newkeys(key_size)
 
-        cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+        try:
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+        except ValueError:
+            raise BadPasswordFormat
+
         enc_private_key = cipher.encrypt(pickle.dumps(private_key))
 
         self._key_id: bytes             = get_key_id_RSA(public_key)
@@ -170,7 +156,9 @@ class PrivateKeyRowRSA(PrivateKeyRow):
             priv = pickle.loads(cipher.decrypt(temp))
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
         except pickle.UnpicklingError:
-            raise PasswordException
+            raise WrongPasswordException
+        except ValueError:
+            raise BadPasswordFormat
 
 
     @property
@@ -202,7 +190,10 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         self._public_key = keypair.publickey()
         self._key_id = get_key_id_DSA(self._public_key)
 
-        cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+        try:
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+        except ValueError:
+            raise BadPasswordFormat
         enc_private_key = cipher.encrypt(keypair.export_key(format='DER'))
 
         self._enc_private_key = enc_private_key
@@ -237,14 +228,18 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
     def get_private_key(self):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
 
+        eiv = self.enc_private_key[:CAST.block_size+2]
+        temp = self.enc_private_key[CAST.block_size+2:]
         try:
-            eiv = self.enc_private_key[:CAST.block_size+2]
-            temp = self.enc_private_key[CAST.block_size+2:]
             cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
+        except ValueError:
+            raise BadPasswordFormat
+
+        try:
             priv = cipher.decrypt(temp)
             return DSA.import_key(priv)
         except ValueError:
-            raise PasswordException
+            raise WrongPasswordException
 
 
     @property
