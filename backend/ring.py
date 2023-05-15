@@ -562,6 +562,9 @@ class Keyring:
         Dodaje privatni ključ u tabelu korisnika, a njegov javni
         parnjak dodaje u globalnu tabelu javnih ključeva
         '''
+        # TODO postoji problem kod import key u slučaju da se uvozi privatni
+        # ključ ako je njegov javni parnjak već uvezen (dupliraće se)
+
         self.private.append(ring)
         ring.add_public_key(name)
 
