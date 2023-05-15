@@ -21,13 +21,6 @@ from abc import ABC, abstractmethod
 from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat, BadPEMFormat
 
 
-def isBase64(s) -> bool:
-    try:
-        return base64.b64encode(base64.b64decode(s)) == s
-    except Exception:
-        return False
-
-
 class PrivateKeyRow(ABC):
     def __init__(self, user_id: str, key_size: int):
         assert(key_size == 1024 or key_size == 2048)
@@ -323,6 +316,11 @@ class PublicKeyRow(ABC):
         pass
 
 
+    @abstractmethod
+    def export_key(self) -> None:
+        pass
+
+
     @property
     @abstractmethod
     def algo(self):
@@ -378,6 +376,15 @@ class PublicKeyRowRSA(PublicKeyRow):
             print("\n>>>Verification Error<<<\n") # TODO
 
         return message
+
+
+    def export_key(self, filename: str) -> None:
+        with open(filename + '.pem', 'wb') as f:
+            encoded = base64.b64encode(pickle.dumps(self))
+            f.write(b"-----BEGIN RSA PUBLIC KEY-----\n")
+            f.write(encoded)
+            f.write(b"\n")
+            f.write(b"-----END RSA PUBLIC KEY-----\n")
 
 
     def auth_header_size(self):
@@ -510,8 +517,6 @@ class Keyring:
                 is_private2 = match_end.group(2)
                 if algo2 != algo or is_private != is_private2 or not key: # ako se ne poklaplaju BEGIN i END ili ako ključ ne postoji
                     raise BadPEMFormat
-                if not isBase64(key): # nije base64
-                    raise BadPEMFormat
                 return base64.b64decode(key)
 
             line = file.readline()
@@ -535,9 +540,15 @@ class Keyring:
                     assert(algo == b'RSA' or algo == b'ELGAMAL')
                     assert(private == b'PRIVATE' or private == b'PUBLIC')
 
-                    key = pickle.loads(self.read_key(f, algo, private))
+                    try:
+                        key = pickle.loads(self.read_key(f, algo, private))
+                    except pickle.UnpicklingError:
+                        raise BadPEMFormat
                     is_private = (private == b'PRIVATE')
-                    if is_private:
+                    exists = [x for x in (self.private if is_private else self.public) if x.key_id == key.key_id]
+                    if len(exists) > 0:
+                        print("Key already exists")
+                    elif is_private:
                         self.add_private_ring(key, key.user_id)
                     else:
                         self.public.append(key)
@@ -577,8 +588,6 @@ keyrings: Dict[str, Keyring] = { }
 def populate():
     key_size = 1024
 
-    keyrings["fedja"] = Keyring()
-    keyrings["lonchar"] = Keyring()
     p = PrivateKeyRowRSA("fedja@fedja", key_size, "fedja")
     keyrings["fedja"].add_private_ring(p, "urosh1")
     p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
