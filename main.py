@@ -1,35 +1,24 @@
-from tkinter import *
-from tkinter.ttk import Notebook
+from backend.store import Store
+from gui.frames.browse_keys import BrowseKeysTab
+from gui.frames.generate_keys import GenerateKeysTab
+from gui.frames.receive_message import ReceiveMessageTab
+from gui.frames.select_user import SelectUserTab
+from gui.frames.send_message import SendMessageTab
+from gui.window import TabbedWindow
 
-from gui.generate_keys import GenerateKeysFrame
-from gui.receive_message import ReceiveFrame
-from gui.select_user import SelectUserFrame
-from gui.send_message import SendFrame
-from gui.browse_keys import BrowseKeysFrame
 
-from backend.ring import Keyring, keyrings
-from backend.config import Cfg
-
-keyrings[Cfg.USERNAME] = Keyring()
-
-root = Tk()
-root.title(f"ZP Projekat 2022/2023 [{Cfg.USERNAME}]")
-
-Grid.rowconfigure(root, 0, weight=1)
-Grid.columnconfigure(root, 0, weight=1)
-
-notebook = Notebook(root)
-notebook.pack(expand=True, fill="both")
-
-SelectUserFrame(notebook)
-GenerateKeysFrame(notebook)
-BrowseKeysFrame(notebook)
-SendFrame(notebook)
-ReceiveFrame(notebook)
-
-def on_tab_change(event):
-	event.widget.winfo_children()[event.widget.index("current")].refresh()
+if __name__ == '__main__':
+	Store.ROOT = root = TabbedWindow()
+	root.title(f'ZP Projekat 2022/2023 [{Store.USERNAME}]')
+	root.iconbitmap('zp.ico')
+	root.minsize(600, 450)
+	root.maxsize(800, 600)
 	
-notebook.bind("<<NotebookTabChanged>>", on_tab_change)
-
-root.mainloop()
+	root.add_tab(SelectUserTab, 'Select User')
+	root.add_tab(GenerateKeysTab, 'Generate Keys')
+	root.add_tab(BrowseKeysTab, 'Browse Keys')
+	root.add_tab(SendMessageTab, 'Send Message')
+	root.add_tab(ReceiveMessageTab, 'Receive Message')
+	
+	root.mainloop()
+	
