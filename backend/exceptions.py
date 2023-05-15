@@ -10,3 +10,7 @@ class WrongPasswordException(Exception):
 class BadPasswordFormat(Exception):
     pass
 
+
+class BadPEMFormat(Exception):
+    pass
+

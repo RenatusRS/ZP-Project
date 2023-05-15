@@ -10,12 +10,15 @@ from Crypto.Cipher import CAST, AES, DES3
 from Crypto.PublicKey import DSA
 from Crypto.Signature import DSS
 from Crypto.Hash import SHA256
+import base64
 
 import sys
 
+import re
+
 from abc import ABC, abstractmethod
 
-from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat
+from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat, BadPEMFormat
 
 
 class PrivateKeyRow(ABC):
@@ -39,6 +42,25 @@ class PrivateKeyRow(ABC):
         # rpr += str(int.from_bytes(self.enc_private_key, sys.byteorder)) + ')\n'
         rpr += '--------------------------' + '-'*len(self.user_id) + '\n'
         return rpr
+
+
+    @staticmethod
+    def cipher_pk(key: bytes, password: str) -> bytes:
+        try:
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
+            return cipher.encrypt(key)
+        except ValueError:
+            raise BadPasswordFormat
+
+
+    def decipher_pk(self, password: str) -> bytes:
+        eiv = self.enc_private_key[:CAST.block_size+2]
+        temp = self.enc_private_key[CAST.block_size+2:]
+        try:
+            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
+            return cipher.decrypt(temp)
+        except ValueError:
+            raise BadPasswordFormat
 
 
     @abstractmethod
@@ -85,6 +107,11 @@ class PrivateKeyRow(ABC):
         pass
 
 
+    @abstractmethod
+    def export_key(self, filename: str) -> None:
+        pass
+
+
 class PrivateKeyRowRSA(PrivateKeyRow):
     def __init__(self, user_id: str, key_size: int, password: str):
         super().__init__(user_id, key_size)
@@ -92,12 +119,8 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
         public_key, private_key = rsa.newkeys(key_size)
 
-        try:
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
-        except ValueError:
-            raise BadPasswordFormat
+        enc_private_key = self.cipher_pk(pickle.dumps(private_key), password)
 
-        enc_private_key = cipher.encrypt(pickle.dumps(private_key))
 
         self._key_id: bytes             = get_key_id_RSA(public_key)
         self._public_key: rsa.PublicKey = public_key
@@ -150,15 +173,20 @@ class PrivateKeyRowRSA(PrivateKeyRow):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
 
         try:
-            eiv = self.enc_private_key[:CAST.block_size+2]
-            temp = self.enc_private_key[CAST.block_size+2:]
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
-            priv = pickle.loads(cipher.decrypt(temp))
+            temp = self.decipher_pk(password)
+            priv = pickle.loads(temp)
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
         except pickle.UnpicklingError:
             raise WrongPasswordException
-        except ValueError:
-            raise BadPasswordFormat
+
+
+    def export_key(self, filename: str) -> None:
+        with open(filename + '.pem', 'wb') as f:
+            encoded = base64.b64encode(pickle.dumps(self))
+            f.write(b"-----BEGIN RSA PRIVATE KEY-----\n")
+            f.write(encoded)
+            f.write(b"\n")
+            f.write(b"-----END RSA PRIVATE KEY-----\n")
 
 
     @property
@@ -190,11 +218,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
         self._public_key = keypair.publickey()
         self._key_id = get_key_id_DSA(self._public_key)
 
-        try:
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
-        except ValueError:
-            raise BadPasswordFormat
-        enc_private_key = cipher.encrypt(keypair.export_key(format='DER'))
+        enc_private_key = self.cipher_pk(keypair.export_key(format='DER'), password)
 
         self._enc_private_key = enc_private_key
 
@@ -228,14 +252,9 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
     def get_private_key(self):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
 
-        eiv = self.enc_private_key[:CAST.block_size+2]
-        temp = self.enc_private_key[CAST.block_size+2:]
+        temp = self.decipher_pk(password)
         try:
-            cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
-        except ValueError:
-            raise BadPasswordFormat
 
-        try:
             priv = cipher.decrypt(temp)
             return DSA.import_key(priv)
         except ValueError:
@@ -299,6 +318,11 @@ class PublicKeyRow(ABC):
         pass
 
 
+    @abstractmethod
+    def export_key(self) -> None:
+        pass
+
+
     @property
     @abstractmethod
     def algo(self):
@@ -354,6 +378,15 @@ class PublicKeyRowRSA(PublicKeyRow):
             print("\n>>>Verification Error<<<\n") # TODO
 
         return message
+
+
+    def export_key(self, filename: str) -> None:
+        with open(filename + '.pem', 'wb') as f:
+            encoded = base64.b64encode(pickle.dumps(self))
+            f.write(b"-----BEGIN RSA PUBLIC KEY-----\n")
+            f.write(encoded)
+            f.write(b"\n")
+            f.write(b"-----END RSA PUBLIC KEY-----\n")
 
 
     def auth_header_size(self):
@@ -450,12 +483,14 @@ class Keyring:
                 return row
         return None
 
+
     def get_private_ring_by_user_id(self, user_id: str):
         for row in self.private:
             if row.user_id == user_id:
                 return row
 
         return None
+
 
     def get_public_ring_by_user_id(self, user_id: str):
         for row in Keyring.public:
@@ -465,11 +500,73 @@ class Keyring:
         return None
 
 
+    @staticmethod
+    def read_key(file, algo, is_private):
+        re_emptyline = b'^\s*$'
+        re_end = b'^-----END (RSA|ELGAMAL) (PRIVATE|PUBLIC) KEY-----$'
+        key = None
+        line = file.readline()
+        while line != b'':
+            match_empty = re.search(re_emptyline, line)
+            match_end = re.search(re_end, line)
+            if not match_empty and not match_end:
+                if key:
+                    raise BadPEMFormat # ako se pojavljuje "dva" ključa (u dva različita reda)
+                key = line
+
+            if match_end:
+                algo2 = match_end.group(1)
+                is_private2 = match_end.group(2)
+                if algo2 != algo or is_private != is_private2 or not key: # ako se ne poklaplaju BEGIN i END ili ako ključ ne postoji
+                    raise BadPEMFormat
+                return base64.b64decode(key)
+
+            line = file.readline()
+        raise BadPEMFormat
+
+
+    def import_key(self, filename: str) -> None:
+        with open(filename, 'rb') as f:
+
+            re_emptyline = b'^\s*$'
+            re_title = b'^-----BEGIN (RSA|ELGAMAL) (PRIVATE|PUBLIC) KEY-----$'
+            line = f.readline()
+            while line != b'':
+                match_empty = re.search(re_emptyline, line)
+                match_title = re.search(re_title, line)
+                if not match_title and not match_empty:
+                    raise BadPEMFormat
+                if match_title:
+                    algo = match_title.group(1)
+                    private = match_title.group(2)
+                    assert(algo == b'RSA' or algo == b'ELGAMAL')
+                    assert(private == b'PRIVATE' or private == b'PUBLIC')
+
+                    try:
+                        key = pickle.loads(self.read_key(f, algo, private))
+                    except pickle.UnpicklingError:
+                        raise BadPEMFormat
+                    is_private = (private == b'PRIVATE')
+                    exists = [x for x in (self.private if is_private else self.public) if x.key_id == key.key_id]
+                    if len(exists) > 0:
+                        print("Key already exists")
+                    elif is_private:
+                        self.add_private_ring(key, key.user_id)
+                    else:
+                        self.public.append(key)
+
+                line = f.readline()
+
+
+
     def add_private_ring(self, ring: PrivateKeyRow, name: str):
         '''
         Dodaje privatni ključ u tabelu korisnika, a njegov javni
         parnjak dodaje u globalnu tabelu javnih ključeva
         '''
+        # TODO postoji problem kod import key u slučaju da se uvozi privatni
+        # ključ ako je njegov javni parnjak već uvezen (dupliraće se)
+
         self.private.append(ring)
         ring.add_public_key(name)
 
@@ -496,8 +593,6 @@ keyrings: Dict[str, Keyring] = { }
 def populate():
     key_size = 1024
 
-    keyrings["fedja"] = Keyring()
-    keyrings["lonchar"] = Keyring()
     p = PrivateKeyRowRSA("fedja@fedja", key_size, "fedja")
     keyrings["fedja"].add_private_ring(p, "urosh1")
     p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
