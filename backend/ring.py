@@ -244,7 +244,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
             priv = cipher.decrypt(temp)
             return DSA.import_key(priv)
         except ValueError:
-            return None
+            raise PasswordException
 
 
     @property
