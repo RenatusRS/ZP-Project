@@ -271,7 +271,8 @@ class PublicKeyRow(ABC):
     def __init__(self, user_id: str, key_size: int):
         assert(key_size == 1024 or key_size == 2048)
 
-        raise InputException
+        if len(user_id) == 0:
+            raise InputException
 
         self.timestamp: bytes = gen_timestamp()
         self.user_id: str     = user_id
