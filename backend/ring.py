@@ -26,7 +26,7 @@ class PrivateKeyRow(ABC):
         assert(key_size == 1024 or key_size == 2048)
 
         if len(user_id) == 0:
-            raise InputException
+            raise InputException('Name/Email field is empty')
 
         self.timestamp: bytes = gen_timestamp()
         self.user_id: str     = user_id
@@ -50,7 +50,7 @@ class PrivateKeyRow(ABC):
             cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
             return cipher.encrypt(key)
         except ValueError:
-            raise BadPasswordFormat
+            raise BadPasswordFormat('Password must be 6 to 16 characters long')
 
 
     def decipher_pk(self, password: str) -> bytes:
@@ -60,7 +60,7 @@ class PrivateKeyRow(ABC):
             cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
             return cipher.decrypt(temp)
         except ValueError:
-            raise BadPasswordFormat
+            raise BadPasswordFormat('Password must be 6 to 16 characters long')
 
 
     def remove(self, user: str) -> None:
@@ -176,18 +176,18 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
 
     def get_private_key(self):
-        password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
+        password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]\t\t\t\t", show="*")
 
         try:
             temp = self.decipher_pk(password)
             priv = pickle.loads(temp)
             return rsa.PrivateKey(priv.n, priv.e, priv.d, priv.p, priv.q)
         except pickle.UnpicklingError:
-            raise WrongPasswordException
+            raise WrongPasswordException('Wrong password')
 
 
     def export_key(self, filename: str) -> None:
-        with open(filename + '.pem', 'wb') as f:
+        with open(filename, 'wb') as f:
             encoded = base64.b64encode(pickle.dumps(self))
             f.write(b"-----BEGIN RSA PRIVATE KEY-----\n")
             f.write(encoded)
@@ -256,13 +256,13 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
     def get_private_key(self):
-        password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
+        password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]\t\t\t\t", show="*")
 
         priv = self.decipher_pk(password)
         try:
             return DSA.import_key(priv)
         except ValueError:
-            raise WrongPasswordException
+            raise WrongPasswordException('Wrong password')
 
 
     @property
@@ -389,7 +389,7 @@ class PublicKeyRowRSA(PublicKeyRow):
 
 
     def export_key(self, filename: str) -> None:
-        with open(filename + '.pem', 'wb') as f:
+        with open(filename, 'wb') as f:
             encoded = base64.b64encode(pickle.dumps(self))
             f.write(b"-----BEGIN RSA PUBLIC KEY-----\n")
             f.write(encoded)
@@ -519,18 +519,18 @@ class Keyring:
             match_end = re.search(re_end, line)
             if not match_empty and not match_end:
                 if key:
-                    raise BadPEMFormat # ako se pojavljuje "dva" ključa (u dva različita reda)
+                    raise BadPEMFormat('Bad PEM format') # ako se pojavljuje "dva" ključa (u dva različita reda)
                 key = line
 
             if match_end:
                 algo2 = match_end.group(1)
                 is_private2 = match_end.group(2)
                 if algo2 != algo or is_private != is_private2 or not key: # ako se ne poklaplaju BEGIN i END ili ako ključ ne postoji
-                    raise BadPEMFormat
+                    raise BadPEMFormat('BEGIN and END do not match or key does not exist')
                 return base64.b64decode(key)
 
             line = file.readline()
-        raise BadPEMFormat
+        raise BadPEMFormat('Bad PEM format')
 
 
     def import_key(self, filename: str) -> None:
@@ -543,7 +543,7 @@ class Keyring:
                 match_empty = re.search(re_emptyline, line)
                 match_title = re.search(re_title, line)
                 if not match_title and not match_empty:
-                    raise BadPEMFormat
+                    raise BadPEMFormat('Bad PEM format')
                 if match_title:
                     algo = match_title.group(1)
                     private = match_title.group(2)
@@ -553,11 +553,11 @@ class Keyring:
                     try:
                         key = pickle.loads(self.read_key(f, algo, private))
                     except pickle.UnpicklingError:
-                        raise BadPEMFormat
+                        raise BadPEMFormat('Bad PEM format')
                     is_private = (private == b'PRIVATE')
                     exists = [x for x in (self.private if is_private else self.public) if x.key_id == key.key_id]
                     if len(exists) > 0:
-                        raise KeyAlreadyExists
+                        raise KeyAlreadyExists('Key already exists')
                     elif is_private:
                         self.add_private_ring(key, key.user_id)
                     else:

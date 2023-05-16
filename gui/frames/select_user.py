@@ -1,35 +1,27 @@
-from tkinter.ttk import Combobox
 from backend.store import Store
 from gui.frames.tab import Tab
-from tkinter import *
+from tkinter.ttk import Frame, Label, Combobox
+from tkinter import LEFT, StringVar, TOP, X
 
 from backend.ring import keyrings
+from gui.utils import set_user
 
 
 class SelectUserTab(Tab):
+	def __init__(self, parent, *args, **kwargs):
+		super().__init__(parent, (0, 0, 0, 0), *args, **kwargs)
 
 	def fill(self):
-		frame_user_input = Frame(self)
-		
 		user = StringVar(value = Store.USERNAME)
-		user.trace(W, lambda a, b, c: self.set_user(user.get()))
 		
-		combo_users = Combobox(frame_user_input, textvar = user, values=list(keyrings.keys()))
+		self.combo_users = Combobox(self, textvar = user, values=list(keyrings.keys()))
+		
+		user.trace('w', lambda *args: set_user(user.get()))
 		
 		# Pack
 		
-		Label(frame_user_input, text='User').pack(side=TOP)
-		combo_users.pack(side=TOP)
-		Label(frame_user_input, text='').pack(side=TOP)
-		
-		frame_user_input.pack(side=TOP)
-		
-		frame_user_input.pack(side=TOP, expand=True, fill=X)
-		
-	
-	def set_user(self, user):
-		if user == '':
-			return
-		
-		Store.USERNAME = user
-		Store.ROOT.title(f'ZP Projekat 2022/2023 [{Store.USERNAME}]')
+		Label(self, text='USER ').pack(side=LEFT)
+		self.combo_users.pack(side=LEFT)
+
+	def add_user(self, user):
+		self.combo_users['values'] = (*self.combo_users['values'], user)

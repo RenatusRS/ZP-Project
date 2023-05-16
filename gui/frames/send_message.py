@@ -1,35 +1,48 @@
-from tkinter.ttk import Separator
+import sys
 from backend.store import Store
 from gui.components.CCheckbutton import CCheckbutton
 from gui.components.COptionMenu import COptionMenu
 from gui.components.CRadiobutton import CRadiobutton
+from gui.components.CRadiogroup import CRadiogroup
 from gui.frames.tab import Tab
-from tkinter import *
-from tkinter.filedialog import asksaveasfile
+from tkinter.ttk import Label, Button, Separator, Frame
+from tkinter import HORIZONTAL, LEFT, TOP, X, BOTTOM, BOTH, W, Text
 
-from backend.messages import create_message
 from backend.ring import Keyring, keyrings
 
 from backend.utils import SymEnc
+from gui.utils import send_message
 
 
 class SendMessageTab(Tab):
+	def __init__(self, parent, *args, **kwargs):
+		super().__init__(parent, (5, 5, 5, 5), *args, **kwargs)
 
 	def fill(self):
 		# Encrypt
 		checkbox_encrypt = CCheckbutton(self, text='Encrypt')
 
-		group_encrypt = 'encrypt_algorithm'
+		group_encrypt = CRadiogroup()
 
 		radio_encrypt_triple_des = CRadiobutton(self, text='Triple DES', value=SymEnc.DES3, group=group_encrypt)
 		radio_encrypt_aes = CRadiobutton(self, text='AES128', value=SymEnc.AES, group=group_encrypt)
 
-		option_public_keys = COptionMenu(self, [(key.user_id, key) for key in Keyring.public])
+		frame_public_keys = Frame(self)
+
+		option_public_keys = COptionMenu(frame_public_keys, {f'{key.user_id} [{int.from_bytes(key.key_id, sys.byteorder)}]': key for key in Keyring.public})
 
 		# Authentication
 		checkbox_authenticate = CCheckbutton(self, text='Authenticate')
 		
-		option_private_keys = COptionMenu(self, [(key.user_id, key) for key in keyrings[Store.USERNAME].private] if Store.USERNAME in keyrings else [])
+		frame_private_keys = Frame(self)
+		
+		option_private_keys = COptionMenu(
+			frame_private_keys,
+			{
+				f'{key.user_id} [{int.from_bytes(key.key_id, sys.byteorder)}]': key
+				for key in keyrings[Store.USERNAME].private
+			} if Store.USERNAME in keyrings else {}
+		)
 
 		# Compression
 		checkbox_compress = CCheckbutton(self, text='Compress')
@@ -42,10 +55,10 @@ class SendMessageTab(Tab):
 
 		button_send_message = Button(
 			self,
-			text='Send Message',
-			command=lambda: self.send_message(
+			text='📧 Send Message',
+			command=lambda: send_message(
 				text_message.get('1.0', 'end-1c'),
-				(option_public_keys.get(), CRadiobutton.get(group_encrypt)) if checkbox_encrypt.get() else None,
+				(option_public_keys.get(), group_encrypt.get()) if checkbox_encrypt.get() else None,
 				option_private_keys.get() if checkbox_authenticate.get() else None,
 				checkbox_compress.get(),
 				checkbox_convert.get()
@@ -55,19 +68,23 @@ class SendMessageTab(Tab):
 		# Pack
 		checkbox_encrypt.pack(side=TOP, anchor=W)
 		
-		Label(self, text='Algorithm').pack(side=TOP, anchor=W)
-		radio_encrypt_triple_des.pack(side=TOP, anchor=W)
-		radio_encrypt_aes.pack(side=TOP, anchor=W)
+		Label(self, text='Algorithm').pack(side=TOP, anchor=W, padx=(5, 0))
+		radio_encrypt_triple_des.pack(side=TOP, anchor=W, padx=(10, 0))
+		radio_encrypt_aes.pack(side=TOP, anchor=W, padx=(10, 0))
 		
-		Label(self, text='Public Key').pack(side=TOP, anchor=W)
-		option_public_keys.pack(side=TOP, anchor=W)
+		Label(frame_public_keys, text='Public Key').pack(side=LEFT, anchor=W)
+		option_public_keys.pack(side=LEFT, anchor=W, padx=(5, 0))
+		
+		frame_public_keys.pack(side=TOP, anchor=W, pady=(10, 0), padx=(5, 0))
 
 		Separator(self, orient=HORIZONTAL).pack(side=TOP, fill=X, pady=10)
 
 		checkbox_authenticate.pack(side=TOP, anchor=W)
 		
-		Label(self, text='Private Key').pack(side=TOP, anchor=W)
-		option_private_keys.pack(side=TOP, anchor=W)
+		Label(frame_private_keys, text='Private Key').pack(side=LEFT, anchor=W)
+		option_private_keys.pack(side=LEFT, anchor=W, padx=(5, 0))
+		
+		frame_private_keys.pack(side=TOP, anchor=W, padx=(5, 0))
 
 		Separator(self, orient=HORIZONTAL).pack(side=TOP, fill=X, pady=10)
 
@@ -76,18 +93,12 @@ class SendMessageTab(Tab):
 		Separator(self, orient=HORIZONTAL).pack(side=TOP, fill=X, pady=10)
 
 		checkbox_convert.pack(side=TOP, anchor=W)
+		
+		Separator(self, orient=HORIZONTAL).pack(side=TOP, fill=X, pady=10)
 
 		Label(self, text='Message').pack(side=TOP, anchor=W)
 		text_message.pack(side=TOP, anchor=W, expand=True, fill=BOTH)
-		button_send_message.pack(side=BOTTOM, fill=X)
+		
+		button_send_message.pack(side=BOTTOM, anchor=W, pady=(10, 0))
 
-	def send_message(self, message, encr, auth, compr, radix64):
-		data = create_message(message, encr, auth, compr, radix64)
 
-		file = asksaveasfile(mode='wb', defaultextension='.xtx', filetypes=[('Encrypted text file', '*.xtx')], initialfile=f'message.xtx')
-
-		if file is None:
-			return
-
-		file.write(data)
-		file.close()

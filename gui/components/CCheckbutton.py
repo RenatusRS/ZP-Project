@@ -1,4 +1,6 @@
-from tkinter import *
+from tkinter.ttk import Checkbutton
+from tkinter import BooleanVar
+
 
 class CCheckbutton(Checkbutton):
 	def __init__(self, parent, *args, **kwargs):

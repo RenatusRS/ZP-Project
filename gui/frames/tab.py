@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
-from tkinter import *
+from tkinter.ttk import Frame
 
 
 class Tab(Frame, metaclass=ABCMeta):
-	def __init__(self, parent):
-		super().__init__(parent)
+	def __init__(self, parent, padding, *args, **kwargs):
+		super().__init__(parent, padding = padding, *args, **kwargs)
 
 		self.fill()
 		
