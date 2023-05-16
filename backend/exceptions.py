@@ -14,3 +14,7 @@ class BadPasswordFormat(Exception):
 class BadPEMFormat(Exception):
     pass
 
+
+class KeyAlreadyExists(Exception):
+    pass
+

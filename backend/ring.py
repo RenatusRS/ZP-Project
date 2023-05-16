@@ -18,7 +18,7 @@ import re
 
 from abc import ABC, abstractmethod
 
-from backend.exceptions import WrongPasswordException, InputException, BadPasswordFormat, BadPEMFormat
+from backend.exceptions import *
 
 
 class PrivateKeyRow(ABC):
@@ -61,6 +61,12 @@ class PrivateKeyRow(ABC):
             return cipher.decrypt(temp)
         except ValueError:
             raise BadPasswordFormat
+
+
+    def remove(self, user: str) -> None:
+        assert(keyrings[user])
+        keyrings[user].private = [x for x in keyrings[user].private if x != self]
+        Keyring.public = [x for x in Keyring.public if x.public_key != self.public_key]
 
 
     @abstractmethod
@@ -252,10 +258,8 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
     def get_private_key(self):
         password = simpledialog.askstring(f"Access Private Key [{self.user_id}]", f"Enter password for [{self.user_id}]", show="*")
 
-        temp = self.decipher_pk(password)
+        priv = self.decipher_pk(password)
         try:
-
-            priv = cipher.decrypt(temp)
             return DSA.import_key(priv)
         except ValueError:
             raise WrongPasswordException
@@ -301,6 +305,10 @@ class PublicKeyRow(ABC):
         rpr += 'algorithm: ' + self.algo.name + '\n'
         rpr += '--------------------------' + '-'*len(self.user_id) + '\n'
         return rpr
+
+
+    def remove(self) -> None:
+        Keyring.public = [x for x in Keyring.public if x != self]
 
 
     @abstractmethod
@@ -549,7 +557,7 @@ class Keyring:
                     is_private = (private == b'PRIVATE')
                     exists = [x for x in (self.private if is_private else self.public) if x.key_id == key.key_id]
                     if len(exists) > 0:
-                        print("Key already exists")
+                        raise KeyAlreadyExists
                     elif is_private:
                         self.add_private_ring(key, key.user_id)
                     else:
