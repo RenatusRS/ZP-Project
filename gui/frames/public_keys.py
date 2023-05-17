@@ -40,7 +40,7 @@ class PublicTable(Table):
 			Grid.columnconfigure(self.table, ind, weight=1)
 			
 		button_export = Button(self.table, text='EXPORT', command=lambda: export_key(key, "PU"))
-		button_delete = Button(self.table, text='❌     ', command=lambda: remove_public_key(key))
+		button_delete = Button(self.table, text='DELETE     ', command=lambda: remove_public_key(key))
 		
 		button_export.grid(row=row, column=4, sticky=NSEW)
 		button_delete.grid(row=row, column=5, sticky=NSEW)
