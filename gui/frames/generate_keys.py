@@ -1,40 +1,32 @@
+from tkinter import LEFT, RIGHT, TOP, BOTTOM, BOTH, W, X
 from backend.store import Store
 from gui.components.CEntry import CEntry
 from gui.components.CRadiobutton import CRadiobutton
+from gui.components.CRadiogroup import CRadiogroup
 from gui.frames.tab import Tab
-from tkinter import *
+from tkinter.ttk import Frame, Label, Button
 
 from backend.ring import Keyring, keyrings, PrivateKeyRowRSA, PrivateKeyRowElGamal
+from gui.utils import generate_keys
 
 
 class GenerateKeysTab(Tab):
+	def __init__(self, parent, *args, **kwargs):
+		super().__init__(parent, (5, 5, 5, 5), *args, **kwargs)
 
 	def fill(self):
-		self.generate_keys_frame()
-
-	def generate_keys_frame(self):
-		frame = Frame(self)
-
 		# Name
-		frame_name = Frame(frame)
-
+		frame_name = Frame(self)
 		entry_name = CEntry(frame_name, maxlength=16)
 
-		Label(frame_name, text='Name').pack(side=LEFT)
-		entry_name.pack(side=RIGHT)
-
 		# Email
-		frame_email = Frame(frame)
-
+		frame_email = Frame(self)
 		entry_email = CEntry(frame_email, maxlength=16)
 
-		Label(frame_email, text='Email').pack(side=LEFT)
-		entry_email.pack(side=RIGHT)
-
 		# Algorithm
-		frame_algorithm = Frame(frame)
+		frame_algorithm = Frame(self)
 		
-		group_algorithm = 'generate_algorithm'
+		group_algorithm = CRadiogroup()
 
 		radio_algorithm_rsa = CRadiobutton(
 			frame_algorithm,
@@ -50,55 +42,55 @@ class GenerateKeysTab(Tab):
 			group=group_algorithm,
 		)
 
-		Label(frame_algorithm, text='Algorithm').pack(side=LEFT)
-		radio_algorithm_dsa_elgamal.pack(side=RIGHT)
-		radio_algorithm_rsa.pack(side=RIGHT)
-
 		# Size
-		frame_size = Frame(frame)
+		frame_size = Frame(self)
 		
-		group_size = 'generate_size'
+		group_size = CRadiogroup()
 
-		radio_size_1024 = CRadiobutton(frame_size, text='1024', value=1024, group=group_size)
-		radio_size_2048 = CRadiobutton(frame_size, text='2048', value=2048, group=group_size)
-
-		Label(frame_size, text='Size').pack(side=LEFT)
-		radio_size_2048.pack(side=RIGHT)
-		radio_size_1024.pack(side=RIGHT)
-
+		radio_size_1024 = CRadiobutton(frame_size, text='1024 B', value=1024, group=group_size)
+		radio_size_2048 = CRadiobutton(frame_size, text='2048 B', value=2048, group=group_size)
+		
 		# Password
-		frame_password = Frame(frame)
-
+		frame_password = Frame(self)
 		entry_password = CEntry(frame_password, show='*', maxlength=16)
-
-		Label(frame_password, text='Password').pack(side=LEFT)
-		entry_password.pack(side=RIGHT)
 
 		# Generate
 		button_generate = Button(
-			frame,
-			text='Generate Keys',
-			command=lambda: self.generate_keys(
+			self,
+			text='🔗 Generate Keys',
+			command=lambda: generate_keys(
 				entry_name.get(),
 				entry_email.get(),
-				CRadiobutton.get(group_algorithm),
-				CRadiobutton.get(group_size),
+				group_algorithm.get(),
+				group_size.get(),
 				entry_password.get()
 			)
 		)
 
 		# Pack
-		frame_name.pack(side=TOP, expand=True, fill=BOTH)
-		frame_email.pack(side=TOP, expand=True, fill=BOTH)
-		frame_algorithm.pack(side=TOP, expand=True, fill=BOTH)
-		frame_size.pack(side=TOP, expand=True, fill=BOTH)
-		frame_password.pack(side=TOP, expand=True, fill=BOTH)
-		button_generate.pack(side=BOTTOM, fill=BOTH)
+		Label(frame_name, text='Name').pack(side=TOP, anchor="nw")
+		entry_name.pack(side=TOP, anchor="nw")
+		
+		Label(frame_email, text='Email').pack(side=TOP, anchor="nw")
+		entry_email.pack(side=TOP, anchor="nw")
+		
+		Label(frame_algorithm, text='Algorithm').pack(side=TOP, anchor="nw")
+		radio_algorithm_rsa.pack(side=TOP, anchor="nw", padx=(5, 0))
+		radio_algorithm_dsa_elgamal.pack(side=TOP, anchor="nw", padx=(5, 0))
+		
+		Label(frame_size, text='Key Size').pack(side=TOP, anchor="nw")
+		radio_size_1024.pack(side=TOP, anchor="nw", padx=(5, 0))
+		radio_size_2048.pack(side=TOP, anchor="nw", padx=(5, 0))
+		
+		Label(frame_password, text='Password').pack(side=TOP, anchor="nw")
+		entry_password.pack(side=TOP, anchor="nw")
+		
+		frame_name.pack(side=TOP, anchor=W, fill=X, expand=True)
+		frame_email.pack(side=TOP, anchor=W, fill=X, expand=True, pady=(0, 10))
+		frame_algorithm.pack(side=TOP, anchor=W, fill=X, expand=True, pady=(0, 10))
+		frame_size.pack(side=TOP, anchor=W, fill=X, expand=True, pady=(0, 10))
+		frame_password.pack(side=TOP, anchor=W, fill=X, expand=True, pady=(0, 10))
+		
+		button_generate.pack(side=BOTTOM, anchor=W)
 
-		frame.pack(fill=BOTH, expand=True)
 
-	def generate_keys(self, name, email, algorithm, size, password):	
-		if Store.USERNAME not in keyrings:
-			keyrings[Store.USERNAME] = Keyring()
-
-		keyrings[Store.USERNAME].add_private_ring(algorithm(email, int(size), password), name)

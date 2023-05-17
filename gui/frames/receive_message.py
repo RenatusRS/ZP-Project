@@ -1,65 +1,76 @@
-from tkinter.filedialog import askopenfile, asksaveasfile
+from backend.exceptions import BadPasswordFormat, WrongPasswordException
 from backend.store import Store
+from gui.components.CFileBrowser import CFileBrowser
+from gui.components.CLabel import CLabel
 from gui.frames.tab import Tab
-from tkinter import *
+from tkinter.ttk import Label, Button
+from tkinter import BOTTOM, X, TOP, BOTH, W, Text
 
 from backend.messages import read_message
+from gui.utils import read_file, save_file
 
 
 class ReceiveMessageTab(Tab):
-	decrypted_data = None
-
-	def fill(self):
-		self.receive_message_frame()
-		
-		button_save_message = Button(self, text='Save Message', command=lambda: self.save_message('message', self.decrypted_data))
-		
-		button_save_message.pack(side=BOTTOM, fill=X)
-		
-	def receive_message_frame(self):
-		global path
-		path = StringVar(value='/')
-		
-		frame = Frame(self)
-		
-		button_recieve_message = Button(frame, text='Receive Message', command=self.process_message)
-		
-		Label(frame, textvariable=path).pack(side=LEFT)
-		button_recieve_message.pack(side=RIGHT)
-
-		frame.pack(side=TOP, fill=BOTH)
-		
-	def process_message(self):
-		data = self.receive_message()
-		
-		if data is None:
-			return
-		
-		data = read_message(Store.USERNAME, data)
-		
-		self.decrypted_data = data
-		    
-	def receive_message(self):
-		file = askopenfile(mode='rb', defaultextension='.xtx', filetypes=[('Encrypted text file', '*.xtx')])
-		
-		if file is None:
-			return None
-		
-		path.set(file.name)
-		
-		data = file.read()
-		file.close()
-		
-		return data
+	def __init__(self, parent, *args, **kwargs):
+		super().__init__(parent, (5, 5, 5, 5), *args, **kwargs)
 	
-	def save_message(self, name, data):
+	def fill(self):
+		filebrowser_recieve_message = CFileBrowser(self, button_text='📩 Receive Message', file_type=('xtx', 'Encrypted text file'))
+		
+		button_decrypt = Button(self, text='🔐 Decrypt', command=lambda: self.process_message(filebrowser_recieve_message.get_data(mode='rb')))
+		
+		self.label_convert = CLabel(self, text='⬜ Converted')
+		self.label_encrypt = CLabel(self, text='⬜ Decrypted')
+		self.label_compress = CLabel(self, text='⬜ Decompressed')
+		self.label_verify = CLabel(self, text='⬜ Verified')
+		
+		self.text_message = Text(self, height=1, width=1)
+		
+		button_save_message = Button(self, text='💾 Save Message', command=lambda: save_file('message', self.text_message.get('1.0', 'end-1c'), 'txt', 'Text file'))
+		
+		filebrowser_recieve_message.pack(side=TOP, fill=X)
+		
+		self.label_convert.pack(side=TOP, fill=X, pady=(10, 0))
+		self.label_encrypt.pack(side=TOP, fill=X)
+		self.label_compress.pack(side=TOP, fill=X)
+		self.label_verify.pack(side=TOP, fill=X)
+
+		
+		button_decrypt.pack(side=TOP, anchor=W)
+		
+		Label(self, text='Decrypted Message').pack(side=TOP, anchor=W, pady=(10, 0))
+		self.text_message.pack(side=TOP, fill=BOTH, expand=True)
+		
+		button_save_message.pack(side=BOTTOM, anchor=W, pady=(10, 0))
+		
+		
+	def process_message(self, data):
 		if data is None:
 			return
 		
-		file = asksaveasfile(mode=W, defaultextension='.txt', filetypes=[('Text file', '*.txt')], initialfile=f'{name}.txt')
-		
-		if file is None:
+		try:
+			self.label_convert.set('✅ Converted')
+			data = read_message(Store.USERNAME, data)
+			
+		except (WrongPasswordException, BadPasswordFormat):
+			self.text_message.delete('1.0', 'end')
+			
+			self.label_encrypt.set('❎ Decrypted - Wrong Password')
+			self.label_compress.set('⬜ Decompressed')
+			self.label_verify.set('⬜ Verified')
+			
 			return
+		except KeyError:
+			self.text_message.delete('1.0', 'end')
+			
+			self.label_encrypt.set('❎ Decrypted - Missing Key')
+			self.label_compress.set('⬜ Decompressed')
+			self.label_verify.set('⬜ Verified')
+			return
+			
+		self.label_encrypt.set('✅ Decrypted')
+		self.label_compress.set('✅ Decompressed')
+		self.label_verify.set('✅ Verified')
 		
-		file.write(data)
-		file.close()
+		self.text_message.delete('1.0', 'end')
+		self.text_message.insert('1.0', data)

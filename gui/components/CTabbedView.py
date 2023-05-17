@@ -1,4 +1,3 @@
-from tkinter import *
 from tkinter.ttk import Notebook
 
 from gui.frames.tab import Tab

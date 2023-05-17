@@ -1,20 +1,19 @@
-from tkinter import *
-from typing import List, Tuple, Any
+from tkinter.ttk import OptionMenu
+from tkinter import StringVar, DISABLED
 
 class COptionMenu(OptionMenu):
-	def __init__(self, parent, values: List[Tuple[str, Any]]):
-		self.values = {value[0]: value[1] for value in values}
+	def __init__(self, parent, values):
+		self.values = values if values else {"No Options": None}
 		
-		text_options = [value[0] for value in values]
-		
-		default = text_options[0] if text_options else None
+		default = list(self.values)[0]
 		
 		self.variable = StringVar(value=default)
 		
-		super().__init__(parent, self.variable, default, *text_options[1:])
+		super().__init__(parent, self.variable, default, *self.values.keys())
 		
 		if not values:
-			self.config(state=DISABLED)
+			self.configure(state=DISABLED)
 	
 	def get(self):
-		return self.values[self.variable.get()] if self.values else None
+		return self.values[self.variable.get()]
+	

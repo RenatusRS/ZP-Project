@@ -1,4 +1,5 @@
-from tkinter import *
+from tkinter.ttk import Frame, Scrollbar
+from tkinter import Canvas, NW, RIGHT, BOTH, VERTICAL, Y, Event
 
 class CFrame(Frame):
 	def __init__(self, parent, *args, **kwargs):
@@ -22,7 +23,6 @@ class CFrame(Frame):
 		self.bind('<Enter>', lambda event: self.canvas.bind_all('<MouseWheel>', lambda event: self.canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')))
 		self.bind('<Leave>', lambda event: self.canvas.unbind_all('<MouseWheel>'))
 		
-
 
 	def FrameWidth(self, event: Event):
 		self.canvas.itemconfig(self.canvas_frame, width = event.width)

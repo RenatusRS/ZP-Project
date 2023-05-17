@@ -1,4 +1,5 @@
-from tkinter import *
+from tkinter.ttk import Entry
+from tkinter import StringVar, W
 
 class CEntry(Entry):
 	def __init__(self, parent, maxlength = None, *args, **kwargs):

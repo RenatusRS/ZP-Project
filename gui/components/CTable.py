@@ -1,4 +1,5 @@
-from tkinter import *
+from tkinter.ttk import Frame, Label
+from tkinter import TOP, BOTH, W, Grid
 from gui.components.CFrame import CFrame
 
 class Table(Frame):
