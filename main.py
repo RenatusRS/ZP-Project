@@ -10,7 +10,7 @@ from gui.window import TabbedWindow
 
 if __name__ == '__main__':
 	Store.ROOT = root = TabbedWindow()
-	# root.iconbitmap('zp.ico')
+	root.iconbitmap('zp.ico')
 	root.minsize(600, 500)
 	root.maxsize(800, 550)
 	root.title('ZP Project 2022/2023')
@@ -19,10 +19,10 @@ if __name__ == '__main__':
 	#if 'vista' in style.theme_names():
 	#	style.theme_use('vista')
 	
-	root.add_tab(GenerateKeysTab, 'Generate Keys')
-	root.add_tab(BrowseKeysTab, 'Browse Keys')
-	root.add_tab(SendMessageTab, 'Send Message')
-	root.add_tab(ReceiveMessageTab, 'Receive Message')
+	root.add_tab(GenerateKeysTab, '🔑 Generate Keys')
+	root.add_tab(BrowseKeysTab, '🔍 Browse Keys')
+	root.add_tab(SendMessageTab, '📤 Send Message')
+	root.add_tab(ReceiveMessageTab, '📥 Receive Message')
 	
 	root.mainloop()
 	

@@ -50,7 +50,7 @@ class PrivateTable(Table):
 		
 		button_export = Button(self.table, text='EXPORT', command=lambda: export_key(key, "PR"))
 		
-		button_delete = Button(self.table, text='DELETE     ', command=lambda: remove_private_key(key))
+		button_delete = Button(self.table, text='❌     ', command=lambda: remove_private_key(key))
 
 		entry_private_key.grid(row=row, column=4, sticky=NSEW)
 		button_export.grid(row=row, column=5, sticky=NSEW)

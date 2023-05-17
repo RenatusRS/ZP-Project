@@ -14,10 +14,10 @@ class BrowseKeysTab(Tab):
 	def fill(self):
 		self.tabbed = CTabbedView(self)
 		
-		self.tabbed.add_tab(PrivateKeysTab, 'Private Keys')
-		self.tabbed.add_tab(PublicKeysTab, 'Public Keys')
+		self.tabbed.add_tab(PrivateKeysTab, '🔒 Private Keys')
+		self.tabbed.add_tab(PublicKeysTab, '🔓 Public Keys')
 		
-		button_import = Button(self, text='Import Keys', command=import_key)
+		button_import = Button(self, text='➕ Import Keys', command=import_key)
 		
 		# Pack
 		self.tabbed.pack(expand=True, fill=BOTH)

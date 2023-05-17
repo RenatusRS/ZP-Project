@@ -15,18 +15,18 @@ class ReceiveMessageTab(Tab):
 		super().__init__(parent, (5, 5, 5, 5), *args, **kwargs)
 	
 	def fill(self):
-		filebrowser_recieve_message = CFileBrowser(self, button_text='Receive Message', file_type=('xtx', 'Encrypted text file'))
+		filebrowser_recieve_message = CFileBrowser(self, button_text='📩 Receive Message', file_type=('xtx', 'Encrypted text file'))
 		
-		button_decrypt = Button(self, text='Decrypt', command=lambda: self.process_message(filebrowser_recieve_message.get_data(mode='rb')))
+		button_decrypt = Button(self, text='🔐 Decrypt', command=lambda: self.process_message(filebrowser_recieve_message.get_data(mode='rb')))
 		
-		self.label_convert = CLabel(self, text='[ ] Converted')
-		self.label_encrypt = CLabel(self, text='[ ] Decrypted')
-		self.label_compress = CLabel(self, text='[ ] Decompressed')
-		self.label_verify = CLabel(self, text='[ ] Verified')
+		self.label_convert = CLabel(self, text='⬜ Converted')
+		self.label_encrypt = CLabel(self, text='⬜ Decrypted')
+		self.label_compress = CLabel(self, text='⬜ Decompressed')
+		self.label_verify = CLabel(self, text='⬜ Verified')
 		
 		self.text_message = Text(self, height=1, width=1)
 		
-		button_save_message = Button(self, text='Save Message', command=lambda: save_file('message', self.text_message.get('1.0', 'end-1c'), 'txt', 'Text file'))
+		button_save_message = Button(self, text='💾 Save Message', command=lambda: save_file('message', self.text_message.get('1.0', 'end-1c'), 'txt', 'Text file'))
 		
 		filebrowser_recieve_message.pack(side=TOP, fill=X)
 		
@@ -49,28 +49,28 @@ class ReceiveMessageTab(Tab):
 			return
 		
 		try:
-			self.label_convert.set('[V] Converted')
+			self.label_convert.set('✅ Converted')
 			data = read_message(Store.USERNAME, data)
 			
 		except (WrongPasswordException, BadPasswordFormat):
 			self.text_message.delete('1.0', 'end')
 			
-			self.label_encrypt.set('[X] Decrypted - Wrong Password')
-			self.label_compress.set('[ ] Decompressed')
-			self.label_verify.set('[ ] Verified')
+			self.label_encrypt.set('❎ Decrypted - Wrong Password')
+			self.label_compress.set('⬜ Decompressed')
+			self.label_verify.set('⬜ Verified')
 			
 			return
 		except KeyError:
 			self.text_message.delete('1.0', 'end')
 			
-			self.label_encrypt.set('[X] Decrypted - Missing Key')
-			self.label_compress.set('[ ] Decompressed')
-			self.label_verify.set('[ ] Verified')
+			self.label_encrypt.set('❎ Decrypted - Missing Key')
+			self.label_compress.set('⬜ Decompressed')
+			self.label_verify.set('⬜ Verified')
 			return
 			
-		self.label_encrypt.set('[V] Decrypted')
-		self.label_compress.set('[V] Decompressed')
-		self.label_verify.set('[V] Verified')
+		self.label_encrypt.set('✅ Decrypted')
+		self.label_compress.set('✅ Decompressed')
+		self.label_verify.set('✅ Verified')
 		
 		self.text_message.delete('1.0', 'end')
 		self.text_message.insert('1.0', data)

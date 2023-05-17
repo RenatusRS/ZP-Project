@@ -57,7 +57,7 @@ class GenerateKeysTab(Tab):
 		# Generate
 		button_generate = Button(
 			self,
-			text='Generate Keys',
+			text='🔗 Generate Keys',
 			command=lambda: generate_keys(
 				entry_name.get(),
 				entry_email.get(),
