@@ -1,4 +1,3 @@
-
 class InputException(Exception):
     pass
 
@@ -17,4 +16,3 @@ class BadPEMFormat(Exception):
 
 class KeyAlreadyExists(Exception):
     pass
-

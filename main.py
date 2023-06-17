@@ -15,9 +15,9 @@ if __name__ == '__main__':
 	root.maxsize(800, 550)
 	root.title('ZP Project 2022/2023')
 	
-	#style = ttk.Style()
-	#if 'vista' in style.theme_names():
-	#	style.theme_use('vista')
+	# style = ttk.Style()
+	# if 'vista' in style.theme_names():
+	# 	style.theme_use('vista')
 	
 	root.add_tab(GenerateKeysTab, '🔑 Generate Keys')
 	root.add_tab(BrowseKeysTab, '🔍 Browse Keys')

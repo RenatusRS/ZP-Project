@@ -1,10 +1,22 @@
 
-from backend.ring import populate, keyrings, Keyring
+from backend.keys.private_key_row import PrivateKeyRow, PrivateKeyRowRSA
+from backend.keys.keyring import Keyring, keyrings
 
-from backend.messages import create_message, read_message, send_message, receive_message
+from backend.messages.messages import create_message, read_message, send_message, receive_message
 from backend.utils import AsymEnc, SymEnc
 
 from tkinter import Tk
+
+def populate():
+    key_size = 1024
+
+    p = PrivateKeyRowRSA("fedja@fedja", key_size, "fedja")
+    keyrings["fedja"].add_private_ring(p, "urosh1")
+    p = PrivateKeyRowRSA("djafe@djafe", key_size, "fedja")
+    keyrings["fedja"].add_private_ring(p, "urosh2")
+    p = PrivateKeyRow("lonchar@lonchar", key_size, "lonchar")
+    keyrings["lonchar"].add_private_ring(p, "fedja1")
+
 
 if __name__ == '__main__':
     root = Tk()

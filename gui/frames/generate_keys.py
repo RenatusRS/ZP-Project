@@ -6,7 +6,8 @@ from gui.components.CRadiogroup import CRadiogroup
 from gui.frames.tab import Tab
 from tkinter.ttk import Frame, Label, Button
 
-from backend.ring import Keyring, keyrings, PrivateKeyRowRSA, PrivateKeyRowElGamal
+from backend.keys.keyring import Keyring, keyrings
+from backend.keys.private_key_row import PrivateKeyRowRSA, PrivateKeyRowElGamal
 from gui.utils import generate_keys
 
 

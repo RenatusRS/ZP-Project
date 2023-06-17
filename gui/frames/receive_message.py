@@ -6,7 +6,7 @@ from gui.frames.tab import Tab
 from tkinter.ttk import Label, Button
 from tkinter import BOTTOM, X, TOP, BOTH, W, Text
 
-from backend.messages import read_message
+from backend.messages.messages import read_message
 from gui.utils import read_file, save_file
 
 
