@@ -15,6 +15,8 @@ from backend.keys.keyring import Keyring, keyrings
 from backend.keys.public_key_row import PublicKeyRowElGamal, PublicKeyRowRSA
 from backend.utils import *
 
+import backend.el_gamal as el_gamal
+
 
 class PrivateKeyRow(ABC):
 	def __init__(self, user_id: str, key_size: int):
@@ -64,7 +66,6 @@ class PrivateKeyRow(ABC):
 		except ValueError:
 			raise BadPasswordFormat('Password must be 6 to 16 characters long')
 		
-
 
 	def remove(self, user: str) -> None:
 		assert(Keyring[user])
@@ -152,6 +153,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 
 		session_key = rsa.decrypt(enc_session_key, private_key)
 		message = decrypt_with_session_key(decr, session_key, iv, message)
+		
 		return message
 
 
@@ -239,7 +241,23 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
 	def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
-		raise Exception("Not yet implemented")
+		ENCRYPTED_SESSION_KEY_BYTES = int(self.key_size / 8)
+		
+		enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
+		message = message[ENCRYPTED_SESSION_KEY_BYTES:]
+		
+		block_size = AES.block_size if decr == SymEnc.AES else DES3.block_size
+		
+		iv = message[:block_size]
+		message = message[block_size:]
+		
+		dsa_keypair = self.get_private_key()
+		eg_private_key = el_gamal.generate_private_key(dsa_keypair)
+
+		session_key = el_gamal.decrypt(enc_session_key, eg_private_key)
+		message = decrypt_with_session_key(decr, session_key, iv, message)
+		
+		return message
 
 
 	def sign(self, message: bytes):
@@ -273,6 +291,14 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 		except ValueError:
 			raise WrongPasswordException('Wrong password')
 		
+	def export_key(self, filename: str) -> None:
+		with open(filename, 'wb') as f:
+			encoded = base64.b64encode(pickle.dumps(self))
+			
+			f.write(b"-----BEGIN ELGAMAL PRIVATE KEY-----\n")
+			f.write(encoded)
+			f.write(b"\n")
+			f.write(b"-----END ELGAMAL PRIVATE KEY-----\n")
 
 	@property
 	def algo(self):

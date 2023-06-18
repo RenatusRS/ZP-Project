@@ -8,7 +8,7 @@ class TabbedWindow(Tk):
 	def __init__(self):
 		super().__init__()
 		
-		Tk.report_callback_exception = self.error_boundry
+		# Tk.report_callback_exception = self.error_boundry
 
 		self.tabbed = CTabbedView(self)
 		

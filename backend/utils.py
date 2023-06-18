@@ -92,9 +92,7 @@ def get_key_id_RSA(key: Union[rsa.PrivateKey, rsa.PublicKey]) -> bytes:
     return (key.n % 2**64).to_bytes(Cfg.KEY_ID_SIZE, sys.byteorder)
 
 
-def get_key_id_DSA(key: DSA.DsaKey) -> bytes:
+def get_key_id_DSA(key) -> bytes:
     n = int.from_bytes(key.export_key(format='DER'), sys.byteorder)
+    
     return (n % 2**64).to_bytes(Cfg.KEY_ID_SIZE, sys.byteorder)
-
-# ------------------------------------------------------
-
