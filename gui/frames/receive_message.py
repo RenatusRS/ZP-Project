@@ -63,7 +63,7 @@ class ReceiveMessageTab(Tab):
 		except VerificationFailed:
 			self.text_message.delete('1.0', 'end')
 			
-			self.label_encrypt.set('✅ Decrypted - Verification Failed')
+			self.label_encrypt.set('✅ Decrypted')
 			self.label_compress.set('✅ Decompressed')
 			self.label_verify.set('❎ Verified - Verification Failed')
 			
