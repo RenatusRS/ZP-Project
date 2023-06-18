@@ -43,7 +43,7 @@ class PublicKeyRow(ABC):
 
 
 	@abstractmethod
-	def verify(self, message: bytes, header: bytes) -> bytes:
+	def verify(self, message: bytes, header: bytes) -> Tuple[bytes, bool]:
 		pass
 
 
@@ -103,7 +103,7 @@ class PublicKeyRowRSA(PublicKeyRow):
 		return header + iv + message # na header dodaje Cipher IV
 
 
-	def verify(self, message: bytes, header: bytes) -> bytes:
+	def verify(self, message: bytes, header: bytes) -> Tuple[bytes, bool]:
 		'''
 		Sklanja zaglavlje sa poruke i proverava da li je hash ispravan
 
@@ -117,15 +117,16 @@ class PublicKeyRowRSA(PublicKeyRow):
 		digest = header[:SHA1_BYTE_SIZE]
 
 		message = message[self.auth_header_size():]
+		ret = True
 		
 		try:
 			rsa.verify(message, digest, pu)
 			
 		except rsa.pkcs1.VerificationError:
-			print("\n>>>Verification Error<<<\n") # TODO
+			ret = False
 			
 
-		return message
+		return message, ret
 
 
 	def export_key(self, filename: str) -> None:
@@ -168,7 +169,7 @@ class PublicKeyRowElGamal(PublicKeyRow):
 		self._algo: AsymEnc          = AsymEnc.ELGAMAL
 
 
-	def verify(self, message: bytes, header: bytes) -> bytes:
+	def verify(self, message: bytes, header: bytes) -> Tuple[bytes, bool]:
 		pu = self.public_key
 
 		dss_sign_size = 40 if self.key_size == 1024 else 56
@@ -179,13 +180,14 @@ class PublicKeyRowElGamal(PublicKeyRow):
 
 		verifier = DSS.new(pu, 'fips-186-3')
 
+		ret = True
 		try:
 			verifier.verify(hsh, signature)
 			
 		except ValueError:
-			print("\n>>>Verification Error<<<\n") # TODO
+			ret = False
 
-		return message
+		return message, ret
 
 
 	def encrypt(self, message: bytes, algo: SymEnc) -> bytes:		

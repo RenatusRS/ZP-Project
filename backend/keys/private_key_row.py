@@ -85,7 +85,7 @@ class PrivateKeyRow(ABC):
 
 
 	@abstractmethod
-	def sign(self, message: bytes):
+	def sign(self, message: bytes, contaminate: bool = False):
 		pass
 
 
@@ -157,7 +157,7 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 		return message
 
 
-	def sign(self, message: bytes) -> bytes:
+	def sign(self, message: bytes, contaminate: bool = False) -> bytes:
 		private_key = self.get_private_key()
 		
 		hsh = rsa.compute_hash(message, 'SHA-1') # računanje hash-a poruke
@@ -166,7 +166,11 @@ class PrivateKeyRowRSA(PrivateKeyRow):
 		header += gen_timestamp() # timestamp - prvih TIMESTAMP_BYTE_SIZE bajtova
 		header += self.key_id # ID javnog ključa pošiljaoca - 8 bajtova
 		header += hsh[0:2] # prva dva okteta hash-a
-		header += rsa.sign_hash(hsh, private_key, 'SHA-1') # šifrovan hash
+		if not contaminate:
+			header += rsa.sign_hash(hsh, private_key, 'SHA-1') # šifrovan hash
+		else:
+			SHA1_BYTE_SIZE = int(self.key_size / 8)
+			header += int(0).to_bytes(SHA1_BYTE_SIZE, sys.byteorder)
 
 		return header
 
@@ -261,7 +265,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 		return message
 
 
-	def sign(self, message: bytes):
+	def sign(self, message: bytes, contaminate: bool = False):
 		private_key = self.get_private_key()
 
 		hsh = SHA256.new(message)
@@ -272,7 +276,11 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 		header += gen_timestamp() # timestamp - prvih TIMESTAMP_BYTE_SIZE bajtova
 		header += self.key_id # ID javnog ključa pošiljaoca - 8 bajtova
 		header += hsh.digest()[0:2] # prva dva okteta hash-a
-		header += signature # šifrovan hash
+		if not contaminate:
+			header += signature # šifrovan hash
+		else:
+			dss_sign_size = 40 if self.key_size == 1024 else 56
+			header += int(0).to_bytes(dss_sign_size, sys.byteorder)
 
 		return header
 
