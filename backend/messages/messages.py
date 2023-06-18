@@ -10,7 +10,7 @@ from backend.keys.public_key_row import PublicKeyRow
 import sys
 
 
-def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth: PrivateKeyRow = None, compr: bool = False, radix64: bool = False) -> bytes:
+def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth: PrivateKeyRow = None, compr: bool = False, radix64: bool = False, contaminate: bool = False) -> bytes:
     '''
     Kreiranje poruke koja treba da se sačuva negde na disku.
     
@@ -26,7 +26,7 @@ def create_message(message: str, encr: Tuple[PublicKeyRow, SymEnc] = None, auth:
     encoded = gen_timestamp() + encoded
     
     if auth: # dodajemo zaglavlje ispred poruke (ukupno 42B + veličina ključa u bajtovima)
-        encoded = auth.sign(encoded) + encoded
+        encoded = auth.sign(encoded, contaminate) + encoded
         
     if compr: # kompresujemo poruku
         encoded = compress(encoded)
@@ -60,8 +60,9 @@ def read_message(user: str, message: bytes) -> str:
     compr   -- opcioni bool koji određuje da li se poruka kompresuje ili ne
     radix64 -- opcioni bool koji određuje da li se poruka konvertuje iz radix64 ili ne
     '''
-    
-    if isBase64(message): # konvertujemo nazad iz radix64
+    f_radix = isBase64(message)
+
+    if f_radix: # konvertujemo nazad iz radix64
         message = radix64_to_message(message)
 
     header = message[:Cfg.MESSAGE_METADATA]
@@ -71,6 +72,7 @@ def read_message(user: str, message: bytes) -> str:
     f_asym = int.from_bytes(header[1:2], sys.byteorder)
     f_sym  = int.from_bytes(header[2:3], sys.byteorder)
     f_comp = int.from_bytes(header[3:4], sys.byteorder)
+    valid = True
 
     assert((f_asym and f_sym) or (not f_asym and not f_sym))
 
@@ -103,9 +105,9 @@ def read_message(user: str, message: bytes) -> str:
 
         assert(keyrow is not None)
 
-        message = keyrow.verify(message, header)
+        message, valid = keyrow.verify(message, header)
 
     timestamp = message[0:Cfg.TIMESTAMP_BYTE_SIZE] # sklanjamo timestamp
     
-    return message[Cfg.TIMESTAMP_BYTE_SIZE:].decode('utf8')
+    return message[Cfg.TIMESTAMP_BYTE_SIZE:].decode('utf8'), (f_auth, valid), (f_asym, f_sym), f_comp, f_radix
 

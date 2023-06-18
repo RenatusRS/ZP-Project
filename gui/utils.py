@@ -79,7 +79,10 @@ def send_message(message, encr, auth, compr, radix64):
 	if encr and encr[0] is None:
 		raise InputException('No public key available')
 	
-	data = create_message(message, encr, auth, compr, radix64)
+	data = create_message(message, encr, auth, compr, radix64, contaminate=False)
+	if auth:
+		data2 = create_message(message, encr, auth, compr, radix64, contaminate=True)
+		save_file('message_contaminated', data2, 'xtx', 'Encrypted text file', mode='wb')
 		
 	save_file('message', data, 'xtx', 'Encrypted text file', mode='wb')
 	
