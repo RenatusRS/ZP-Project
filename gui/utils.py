@@ -1,11 +1,18 @@
 import sys
-from tkinter.filedialog import askopenfile, askopenfilenames, askopenfiles, asksaveasfile
-from backend.messages import create_message
-from backend.ring import Keyring, keyrings
+from tkinter.filedialog import askopenfile, askopenfilenames, asksaveasfile
+from backend.exceptions import InputException
+from backend.messages.messages import create_message
+from backend.keys.keyring import Keyring, keyrings
 from backend.store import Store
 
 
-def generate_keys(name, email, algorithm, size, password):	
+def generate_keys(name, email, algorithm, size, password):
+		if not name:
+			raise InputException('Name is empty')
+		
+		if not email:
+			raise InputException('Email is empty')
+		
 		if Store.USERNAME not in keyrings:
 			keyrings[Store.USERNAME] = Keyring()
 			Store.ROOT.add_user(Store.USERNAME)
@@ -69,6 +76,9 @@ def read_file(extension, file_type, mode='r'):
 	
 	
 def send_message(message, encr, auth, compr, radix64):
+	if encr and encr[0] is None:
+		raise InputException('No public key available')
+	
 	data = create_message(message, encr, auth, compr, radix64)
 		
 	save_file('message', data, 'xtx', 'Encrypted text file', mode='wb')

@@ -6,6 +6,7 @@ class CFrame(Frame):
 		super().__init__(parent, *args, **kwargs)
 		
 		self.canvas = Canvas(self)
+		self.canvas.config(highlightthickness=0)
 		self.canvas.pack(side=RIGHT, fill=BOTH, expand=True)
 		
 		self.content = Frame(self.canvas)

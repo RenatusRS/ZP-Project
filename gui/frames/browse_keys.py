@@ -2,7 +2,7 @@ from gui.components.CTabbedView import CTabbedView
 from gui.frames.private_keys import PrivateKeysTab
 from gui.frames.public_keys import PublicKeysTab
 from gui.frames.tab import Tab
-from tkinter import BOTH, BOTTOM, X, E
+from tkinter import BOTH, BOTTOM, E
 from tkinter.ttk import Button
 
 from gui.utils import import_key

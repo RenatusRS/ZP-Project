@@ -1,7 +1,7 @@
 import sys
-from tkinter.filedialog import asksaveasfile
-from backend.ring import Keyring, PublicKeyRow
-from backend.store import Store
+from backend.keys.keyring import Keyring
+from backend.keys.public_key_row import PublicKeyRow
+
 from backend.utils import timestamp_to_string
 from gui.components.CTable import Table
 from gui.frames.tab import Tab

@@ -8,7 +8,7 @@ from gui.frames.tab import Tab
 from tkinter.ttk import Label, Button, Separator, Frame
 from tkinter import HORIZONTAL, LEFT, TOP, X, BOTTOM, BOTH, W, Text
 
-from backend.ring import Keyring, keyrings
+from backend.keys.keyring import Keyring, keyrings
 
 from backend.utils import SymEnc
 from gui.utils import send_message

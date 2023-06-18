@@ -1,6 +1,6 @@
 import sys
-from tkinter.filedialog import askopenfiles, asksaveasfile
-from backend.ring import Keyring, keyrings, PrivateKeyRow
+from backend.keys.keyring import keyrings
+from backend.keys.private_key_row import PrivateKeyRow
 from backend.store import Store
 from backend.utils import timestamp_to_string
 from gui.components.CTable import Table

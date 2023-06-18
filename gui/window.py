@@ -3,12 +3,14 @@ from gui.components.CTabbedView import CTabbedView
 from gui.frames.select_user import SelectUserTab
 from gui.frames.tab import Tab
 
+import traceback
+
 class TabbedWindow(Tk):
 
 	def __init__(self):
 		super().__init__()
 		
-		Tk.report_callback_exception = self.error_boundry
+		Tk.report_callback_exception = self.error_boundary
 
 		self.tabbed = CTabbedView(self)
 		
@@ -26,11 +28,14 @@ class TabbedWindow(Tk):
 	def add_user(self, user):
 		self.user_input.add_user(user)
 		
-	def error_boundry(self, type, value, traceback):
+	def error_boundary(self, type, value, trace):
 		print()
 		print('=========================================')
-		print('Exception')
+		print('EXCEPTION')
 		print('=========================================')
 		print(f'{type.__name__}: {value}')
+		print('=========================================')
+		print(traceback.print_tb(trace))
+		print('=========================================')
 
 		messagebox.showerror('Error', value)

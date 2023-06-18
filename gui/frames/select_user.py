@@ -1,9 +1,9 @@
 from backend.store import Store
 from gui.frames.tab import Tab
-from tkinter.ttk import Frame, Label, Combobox
-from tkinter import LEFT, StringVar, TOP, X
+from tkinter.ttk import Label, Combobox
+from tkinter import LEFT, StringVar
 
-from backend.ring import keyrings
+from backend.keys.keyring import keyrings
 from gui.utils import set_user
 
 

@@ -1,7 +1,6 @@
-
 from typing import Union
+from backend.algorithms import SymEnc, AsymEnc
 
-from enum import Enum
 from backend.config import Cfg
 import calendar, time
 import sys
@@ -13,23 +12,6 @@ from Crypto.Cipher import DES3, AES
 from Crypto.PublicKey import DSA
 import rsa
 
-# ----------------------- Klase ------------------------
-
-'''
-Enum za simetrične alogritme šifrovanja
-'''
-class SymEnc(Enum):
-    DES3  = 1
-    AES   = 2
-    CAST5 = 3
-    IDEA  = 4
-
-'''
-Enum za asimetrične algoritme šifrovanja
-'''
-class AsymEnc(Enum):
-    RSA     = 1
-    ELGAMAL = 2
 
 # --------------------- Funkcije -----------------------
 
@@ -37,13 +19,17 @@ def encrypt_with_session_key(algorithm: SymEnc, session_key: bytes, message: byt
     '''
     Šifruje poruku 'message' ključem 'session_key' simetričnim algoritmom 'algorithm'
     '''
+    
     assert(algorithm == SymEnc.DES3 or algorithm == SymEnc.AES)
+    
     if algorithm == SymEnc.DES3:
         cipher = DES3.new(session_key, DES3.MODE_CFB)
+        
     elif algorithm == SymEnc.AES:
         cipher = AES.new(session_key, AES.MODE_CFB)
-
+        
     ciphertext = cipher.encrypt(message)
+    
     return ciphertext, cipher.iv
 
 
@@ -51,13 +37,18 @@ def decrypt_with_session_key(algorithm: SymEnc, session_key: bytes, iv: bytes, m
     '''
     Dešifruje poruku 'message' ključem 'session_key' simetričnim algoritmom 'algorithm' i inicijalnim vektorom 'iv'
     '''
+    
     assert(algorithm == SymEnc.DES3 or algorithm == SymEnc.AES)
+    
     if algorithm == SymEnc.DES3:
         cipher = DES3.new(session_key, DES3.MODE_CFB, iv)
+        
     elif algorithm == SymEnc.AES:
         cipher = AES.new(session_key, AES.MODE_CFB, iv)
+        
 
     plaintext = cipher.decrypt(message)
+    
     return plaintext
 
 
@@ -66,8 +57,10 @@ def gen_timestamp() -> bytes:
     '''
     Generiše bytearray za trenutno vreme
     '''
+    
     current_gmt = time.gmtime()
     time_stamp = calendar.timegm(current_gmt)
+    
     return time_stamp.to_bytes(Cfg.TIMESTAMP_BYTE_SIZE, sys.byteorder)
 
 
@@ -75,6 +68,7 @@ def timestamp_to_string(timestamp: bytes) -> str:
     '''
     Vraća string za timestamp bytearray
     '''
+    
     return str(datetime.fromtimestamp(int.from_bytes(timestamp, sys.byteorder)))
 
 
@@ -82,6 +76,7 @@ def generate_session_key() -> bytes:
     '''
     Generiše nasumični sesijski ključ uobičajne veličine
     '''
+    
     return get_random_bytes(Cfg.SESSION_KEY_BYTES)
 
 
@@ -92,16 +87,11 @@ def get_key_id_RSA(key: Union[rsa.PrivateKey, rsa.PublicKey]) -> bytes:
 
     key -- ključ za koji se uzima ID
     '''
+    
     return (key.n % 2**64).to_bytes(Cfg.KEY_ID_SIZE, sys.byteorder)
 
 
-def get_key_id_DSA(key: DSA.DsaKey) -> bytes:
+def get_key_id_DSA(key) -> bytes:
     n = int.from_bytes(key.export_key(format='DER'), sys.byteorder)
+    
     return (n % 2**64).to_bytes(Cfg.KEY_ID_SIZE, sys.byteorder)
-
-# ------------------------------------------------------
-
-if __name__ == '__main__':
-    pass
-
-
