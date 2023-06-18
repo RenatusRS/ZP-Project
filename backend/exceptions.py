@@ -16,3 +16,7 @@ class BadPEMFormat(Exception):
 
 class KeyAlreadyExists(Exception):
     pass
+
+
+class VerificationFailed(Exception):
+	pass

@@ -122,9 +122,8 @@ class PublicKeyRowRSA(PublicKeyRow):
 			rsa.verify(message, digest, pu)
 			
 		except rsa.pkcs1.VerificationError:
-			print("\n>>>Verification Error<<<\n") # TODO
+			raise VerificationFailed('Verification failed')
 			
-
 		return message
 
 
@@ -183,7 +182,7 @@ class PublicKeyRowElGamal(PublicKeyRow):
 			verifier.verify(hsh, signature)
 			
 		except ValueError:
-			print("\n>>>Verification Error<<<\n") # TODO
+			raise VerificationFailed('Verification failed')
 
 		return message
 
