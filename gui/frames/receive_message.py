@@ -1,4 +1,4 @@
-from backend.exceptions import BadPasswordFormat, WrongPasswordException
+from backend.exceptions import BadPasswordFormat, VerificationFailed, WrongPasswordException
 from backend.store import Store
 from gui.components.CFileBrowser import CFileBrowser
 from gui.components.CLabel import CLabel
@@ -58,6 +58,14 @@ class ReceiveMessageTab(Tab):
 			self.label_encrypt.set('❎ Decrypted - Wrong Password')
 			self.label_compress.set('⬜ Decompressed')
 			self.label_verify.set('⬜ Verified')
+			
+			return
+		except VerificationFailed:
+			self.text_message.delete('1.0', 'end')
+			
+			self.label_encrypt.set('✅ Decrypted - Verification Failed')
+			self.label_compress.set('✅ Decompressed')
+			self.label_verify.set('❎ Verified - Verification Failed')
 			
 			return
 		except KeyError:
