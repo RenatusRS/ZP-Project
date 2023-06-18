@@ -8,7 +8,7 @@ class TabbedWindow(Tk):
 	def __init__(self):
 		super().__init__()
 		
-		# Tk.report_callback_exception = self.error_boundry
+		Tk.report_callback_exception = self.error_boundary
 
 		self.tabbed = CTabbedView(self)
 		
@@ -26,7 +26,7 @@ class TabbedWindow(Tk):
 	def add_user(self, user):
 		self.user_input.add_user(user)
 		
-	def error_boundry(self, type, value, traceback):
+	def error_boundary(self, type, value, traceback):
 		print()
 		print('=========================================')
 		print('Exception')
