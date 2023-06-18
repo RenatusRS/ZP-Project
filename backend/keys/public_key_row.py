@@ -113,7 +113,7 @@ class PublicKeyRowRSA(PublicKeyRow):
 		
 		pu = self.public_key
 
-		SHA1_BYTE_SIZE = int(self.key_size/8)
+		SHA1_BYTE_SIZE = int(self.key_size / 8)
 		digest = header[:SHA1_BYTE_SIZE]
 
 		message = message[self.auth_header_size():]

@@ -1,6 +1,5 @@
 import pickle
 import random
-from typing import Tuple
 from Crypto.PublicKey import DSA
 
 
