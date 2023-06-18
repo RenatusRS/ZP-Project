@@ -241,10 +241,11 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 
 
 	def decrypt(self, message: bytes, decr: SymEnc) -> bytes:
-		ENCRYPTED_SESSION_KEY_BYTES = int(self.key_size / 8)
+		enc_session_key_length = int.from_bytes(message[0:2], sys.byteorder)
+		message = message[2:]
 		
-		enc_session_key = message[:ENCRYPTED_SESSION_KEY_BYTES]
-		message = message[ENCRYPTED_SESSION_KEY_BYTES:]
+		enc_session_key = message[:enc_session_key_length]
+		message = message[enc_session_key_length:]
 		
 		block_size = AES.block_size if decr == SymEnc.AES else DES3.block_size
 		
@@ -290,6 +291,7 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 		
 		except ValueError:
 			raise WrongPasswordException('Wrong password')
+		
 		
 	def export_key(self, filename: str) -> None:
 		with open(filename, 'wb') as f:

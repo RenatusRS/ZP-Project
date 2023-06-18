@@ -28,7 +28,6 @@ def encrypt_with_session_key(algorithm: SymEnc, session_key: bytes, message: byt
     elif algorithm == SymEnc.AES:
         cipher = AES.new(session_key, AES.MODE_CFB)
         
-
     ciphertext = cipher.encrypt(message)
     
     return ciphertext, cipher.iv

@@ -198,6 +198,7 @@ class PublicKeyRowElGamal(PublicKeyRow):
 		
 		header = b''
 		header += self.key_id
+		header += len(enc_session_key).to_bytes(2, sys.byteorder)
 		header += enc_session_key
 		
 		message, iv = encrypt_with_session_key(algo, session_key, message)
