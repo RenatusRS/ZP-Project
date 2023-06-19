@@ -10,6 +10,7 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import DSA
 from Crypto.Signature import DSS
 
+from backend.config import Cfg
 from backend.exceptions import *
 from backend.keys.keyring import Keyring, keyrings
 from backend.keys.public_key_row import PublicKeyRowElGamal, PublicKeyRowRSA
@@ -45,8 +46,9 @@ class PrivateKeyRow(ABC):
 	@staticmethod
 	def cipher_pk(key: bytes, password: str) -> bytes:
 		try:
-			cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP)
-			
+			hsh = SHA256.new(password.encode('utf8')).digest()[:16] if Cfg.HASH_PASSWORD else password.encode('utf8')
+			cipher = CAST.new(hsh, CAST.MODE_OPENPGP)
+
 			return cipher.encrypt(key)
 		
 		except ValueError:
@@ -59,8 +61,9 @@ class PrivateKeyRow(ABC):
 		temp = self.enc_private_key[CAST.block_size+2:]
 		
 		try:
-			cipher = CAST.new(password.encode('utf8'), CAST.MODE_OPENPGP, eiv)
-			
+			hsh = SHA256.new(password.encode('utf8')).digest()[:16] if Cfg.HASH_PASSWORD else password.encode('utf8')
+			cipher = CAST.new(hsh, CAST.MODE_OPENPGP, eiv)
+
 			return cipher.decrypt(temp)
 		
 		except ValueError:
