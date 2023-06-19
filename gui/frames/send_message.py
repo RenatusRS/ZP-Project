@@ -4,9 +4,10 @@ from gui.components.CCheckbutton import CCheckbutton
 from gui.components.COptionMenu import COptionMenu
 from gui.components.CRadiobutton import CRadiobutton
 from gui.components.CRadiogroup import CRadiogroup
+from gui.components.CText import CText
 from gui.frames.tab import Tab
 from tkinter.ttk import Label, Button, Separator, Frame
-from tkinter import HORIZONTAL, LEFT, TOP, X, BOTTOM, BOTH, W, Text
+from tkinter import HORIZONTAL, LEFT, TOP, X, BOTTOM, BOTH, W
 
 from backend.keys.keyring import Keyring, keyrings
 
@@ -51,15 +52,15 @@ class SendMessageTab(Tab):
 		checkbox_convert = CCheckbutton(self, text='Convert')
 
 		# Message
-		text_message = Text(self, height=1, width=1)
+		text_message = CText(self, height=1, width=1)
 
 		button_send_message = Button(
 			self,
 			text='📧 Send Message',
 			command=lambda: send_message(
-				text_message.get('1.0', 'end-1c'),
-				(option_public_keys.get(), group_encrypt.get()) if checkbox_encrypt.get() else None,
-				option_private_keys.get() if checkbox_authenticate.get() else None,
+				text_message.data(),
+				[option_public_keys.get(), group_encrypt.get()] if checkbox_encrypt.get() else None,
+				[option_private_keys.get()] if checkbox_authenticate.get() else None,
 				checkbox_compress.get(),
 				checkbox_convert.get()
 			)
