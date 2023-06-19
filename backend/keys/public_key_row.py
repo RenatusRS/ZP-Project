@@ -210,14 +210,16 @@ class PublicKeyRowElGamal(PublicKeyRow):
 		
 		
 	def export_key(self, filename: str) -> None:
+		t = self.public_key
+		self._public_key = self.public_key.export_key(format='DER')
 		with open(filename, 'wb') as f:
-			self._public_key = self.public_key.export_key(format='DER')
 			encoded = base64.b64encode(pickle.dumps(self))
 			
 			f.write(b"-----BEGIN ELGAMAL PUBLIC KEY-----\n")
 			f.write(encoded)
 			f.write(b"\n")
 			f.write(b"-----END ELGAMAL PUBLIC KEY-----\n")
+		self._public_key = t
 
 
 	def auth_header_size(self):
