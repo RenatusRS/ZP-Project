@@ -211,6 +211,7 @@ class PublicKeyRowElGamal(PublicKeyRow):
 		
 	def export_key(self, filename: str) -> None:
 		with open(filename, 'wb') as f:
+			self._public_key = self.public_key.export_key(format='DER')
 			encoded = base64.b64encode(pickle.dumps(self))
 			
 			f.write(b"-----BEGIN ELGAMAL PUBLIC KEY-----\n")

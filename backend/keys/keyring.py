@@ -87,21 +87,24 @@ class Keyring:
 
                     try:
                         key = pickle.loads(self.read_key(f, algo, private))
-                        
+
                     except pickle.UnpicklingError:
                         raise BadPEMFormat('Bad PEM format')
-                    
+
+                    if algo == b'ELGAMAL':
+                        key._public_key = DSA.import_key(key.public_key)
+
                     is_private = (private == b'PRIVATE')
                     exists = [x for x in (self.private if is_private else self.public) if x.key_id == key.key_id]
-                    
+
                     if exists:
                         raise KeyAlreadyExists(f'{"PRIVATE" if is_private else "PUBLIC"} Key [{int.from_bytes(key.key_id, sys.byteorder)}] already exists')
-                    
+
                     if is_private:
                         self.add_private_ring(key, key.user_id)
                     else:
                         self.public.append(key)
-                        
+
 
                 line = f.readline()
 

@@ -308,9 +308,10 @@ class PrivateKeyRowElGamal(PrivateKeyRow):
 		
 		
 	def export_key(self, filename: str) -> None:
+		self._public_key = self.public_key.export_key(format='DER')
 		with open(filename, 'wb') as f:
 			encoded = base64.b64encode(pickle.dumps(self))
-			
+
 			f.write(b"-----BEGIN ELGAMAL PRIVATE KEY-----\n")
 			f.write(encoded)
 			f.write(b"\n")
