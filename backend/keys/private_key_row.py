@@ -45,6 +45,9 @@ class PrivateKeyRow(ABC):
 
 	@staticmethod
 	def cipher_pk(key: bytes, password: str) -> bytes:
+		if len(password) < 1:
+			raise BadPasswordFormat('Password must have at least 1 character')
+
 		try:
 			hsh = SHA256.new(password.encode('utf8')).digest()[:16] if Cfg.HASH_PASSWORD else password.encode('utf8')
 			cipher = CAST.new(hsh, CAST.MODE_OPENPGP)
@@ -59,7 +62,9 @@ class PrivateKeyRow(ABC):
 	def decipher_pk(self, password: str) -> bytes:
 		eiv = self.enc_private_key[:CAST.block_size+2]
 		temp = self.enc_private_key[CAST.block_size+2:]
-		
+
+		if len(password) < 1:
+			raise BadPasswordFormat('Password must have at least 1 character')
 		try:
 			hsh = SHA256.new(password.encode('utf8')).digest()[:16] if Cfg.HASH_PASSWORD else password.encode('utf8')
 			cipher = CAST.new(hsh, CAST.MODE_OPENPGP, eiv)
