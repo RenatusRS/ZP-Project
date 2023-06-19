@@ -111,11 +111,11 @@ class Keyring:
         Dodaje privatni ključ u tabelu korisnika, a njegov javni
         parnjak dodaje u globalnu tabelu javnih ključeva
         '''
-        
-        # TODO postoji problem kod import key u slučaju da se uvozi privatni
-        # ključ ako je njegov javni parnjak već uvezen (dupliraće se)
 
         self.private.append(key_row)
+        for key in Keyring.public:
+            if key_row.public_key.key_id == key.key_id:
+                return
         key_row.add_public_key(name)
 
 
