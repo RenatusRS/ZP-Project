@@ -117,7 +117,7 @@ class Keyring:
 
         self.private.append(key_row)
         for key in Keyring.public:
-            if key_row.public_key.key_id == key.key_id:
+            if key_row.key_id == key.key_id:
                 return
         key_row.add_public_key(name)
 
