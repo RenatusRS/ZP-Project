@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import base64
 import pickle
 import sys
+from typing import Tuple
 
 import rsa
 from Crypto.Hash import SHA256

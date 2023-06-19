@@ -97,9 +97,8 @@ class Keyring:
                     if exists:
                         raise KeyAlreadyExists('Key already exists')
                     
-                    elif is_private:
+                    if is_private:
                         self.add_private_ring(key, key.user_id)
-                        
                     else:
                         self.public.append(key)
                         
