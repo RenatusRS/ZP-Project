@@ -71,7 +71,7 @@ class PrivateKeyRow(ABC):
 		# assert(Keyring[user])
 		
 		keyrings[user].private = [x for x in keyrings[user].private if x != self]
-		Keyring.public = [x for x in Keyring.public if x.public_key != self.public_key]
+		Keyring.public = [x for x in Keyring.public if x.key_id != self.key_id]
 
 
 	@abstractmethod
